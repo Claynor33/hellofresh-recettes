@@ -552,6 +552,29 @@ function importData(evt){
   rd.readAsText(f);
 }
 
+/* ---- COMPRESSION IMAGE ---- */
+function compressImage(file,maxDim,quality){
+  return new Promise((resolve,reject)=>{
+    const rd=new FileReader();
+    rd.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width,h=img.height;
+        if(w>h&&w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;}
+        else if(h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;}
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.onerror=reject;
+      img.src=e.target.result;
+    };
+    rd.onerror=reject;
+    rd.readAsDataURL(file);
+  });
+}
+
 /* ---- DEFAULTS ---- */
 function defs(){return[
   {id:1,nom:"Poulet aux champignons",img:null,basePersons:2,selected:false,stars:4,diff:'easy',time:25,tags:['proteine'],
@@ -794,9 +817,10 @@ function chgDetailP(d,id){
 
 function handleDetailImg(evt,id){
   const f=evt.target.files[0];if(!f)return;
-  const rd=new FileReader();
-  rd.onload=e=>{const r=recettes.find(x=>x.id===id);if(r){r.img=e.target.result;save();openDetail(id);}};
-  rd.readAsDataURL(f);
+  compressImage(f,700,0.7).then(dataUrl=>{
+    const r=recettes.find(x=>x.id===id);
+    if(r){r.img=dataUrl;save();openDetail(id);}
+  });
 }
 
 function deductFrigo(id){
@@ -1063,12 +1087,10 @@ function closeModal(){document.getElementById('modal-add').classList.remove('ope
 
 function handleImg(evt){
   const f=evt.target.files[0];if(!f)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    pendingImg=e.target.result;
+  compressImage(f,700,0.7).then(dataUrl=>{
+    pendingImg=dataUrl;
     document.getElementById('img-preview').innerHTML=`<img src="${pendingImg}" style="width:100%;height:90px;object-fit:cover;border-radius:10px;display:block">`;
-  };
-  reader.readAsDataURL(f);
+  });
 }
 
 function addIngrRow(qte='',unit='',nom='',rayon='autres'){
