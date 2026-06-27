@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-title" content="Hello Fresh">
 <meta name="theme-color" content="#6aaa41">
 <title>Hello Fresh — Mes recettes</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--hf:#6aaa41;--hfd:#4d8a2a;--hfl:#edf6e6;--hfb:#b8dfa0;--hft:#2d5a1a;--safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom)}
@@ -196,6 +198,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 /* DISPONIBILITE DETAIL */
 .dispo-bar{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:12px;padding:10px 13px;margin-bottom:11px}
+
+/* NIVEAU / XP */
+.level-bar{display:flex;align-items:center;gap:9px;background:#fff;padding:8px 14px;border-bottom:1px solid #e0e0e0}
+.level-badge{background:var(--hf);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;flex-shrink:0;cursor:pointer}
+.level-progress-wrap{flex:1;height:8px;background:#eee;border-radius:4px;overflow:hidden}
+.level-progress{height:8px;background:linear-gradient(90deg,var(--hf),#8bc34a);border-radius:4px;transition:width .3s}
+.level-xp-text{font-size:11px;color:#888;font-weight:600;flex-shrink:0;white-space:nowrap}
+.level-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--hf);color:#fff;padding:12px 22px;border-radius:14px;font-weight:700;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;text-align:center;animation:levelToastIn .25s ease-out}
+@keyframes levelToastIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
+.xp-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:9px 18px;border-radius:20px;font-weight:600;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;animation:levelToastIn .25s ease-out}
+
+/* CLOUD SYNC */
+#cloud-code-display{font-weight:700;letter-spacing:1px;text-align:center;font-size:18px;color:var(--hft)}
 </style>
 </head>
 <body>
@@ -207,10 +222,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     </div>
     <h1>Hello Fresh — Recettes</h1>
     <div class="header-acts">
+      <button class="hbtn" onclick="openCloudModal()" title="Sauvegarde cloud">☁️</button>
       <button class="hbtn" onclick="exportData()" title="Exporter">⬇️</button>
       <button class="hbtn" onclick="document.getElementById('import-file').click()" title="Importer">⬆️</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
+  </div>
+
+  <div class="level-bar" id="level-bar" onclick="showLevelUp(true)">
+    <div class="level-badge" id="level-badge">Niv. 1</div>
+    <div class="level-progress-wrap"><div class="level-progress" id="level-progress" style="width:0%"></div></div>
+    <div class="level-xp-text" id="level-xp-text">0/100 XP</div>
   </div>
 
   <div class="tabs">
@@ -371,6 +393,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     </div>
   </div>
 
+  <!-- MODAL CLOUD -->
+  <div class="modal-wrap" id="modal-cloud">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>☁️ Sauvegarde cloud</h3>
+      <p style="font-size:13px;color:#666;line-height:1.55;margin-bottom:14px">Vos données sont sauvegardées automatiquement en ligne avec le code ci-dessous. Notez-le pour les retrouver sur un autre téléphone ou navigateur.</p>
+      <div class="field">
+        <label>Mon code de sauvegarde</label>
+        <input type="text" id="cloud-code-display" readonly>
+      </div>
+      <button class="btn btn-hfl btn-sm" style="width:100%;justify-content:center" onclick="copyCloudCode()">📋 Copier le code</button>
+      <div class="field" style="margin-top:18px">
+        <label>Récupérer mes données depuis un autre code</label>
+        <input type="text" id="cloud-code-input" placeholder="Entrer un code existant" autocapitalize="characters" autocorrect="off">
+      </div>
+      <button class="btn btn-hf" style="width:100%;padding:12px;justify-content:center" onclick="restoreFromCode()">⬇️ Récupérer ces données</button>
+      <div id="cloud-status" style="font-size:12px;color:#888;margin-top:12px;text-align:center"></div>
+      <button class="btn" style="width:100%;margin-top:12px;justify-content:center" onclick="closeCloudModal()">Fermer</button>
+    </div>
+  </div>
+
   <!-- MODE CUISINE -->
   <div class="cuisine-modal" id="cuisine-modal">
     <button class="detail-back" onclick="closeCuisine()" style="margin-bottom:10px;color:#888">✕ Fermer le mode cuisine</button>
@@ -387,6 +430,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 const SK='hf_v6_ios';
+
+/* ---- FIREBASE / CLOUD SYNC ---- */
+const firebaseConfig={
+  apiKey:"AIzaSyBynzqhyOSBoxJMeQekdJ6_OjQwvYlUbE8",
+  authDomain:"hellow-fresh---base.firebaseapp.com",
+  projectId:"hellow-fresh---base",
+  storageBucket:"hellow-fresh---base.firebasestorage.app",
+  messagingSenderId:"403722189386",
+  appId:"1:403722189386:web:8ed12b7a80463f3aa244b3"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+let syncCode=localStorage.getItem('hf_sync_code');
+if(!syncCode){syncCode=genCloudCode();localStorage.setItem('hf_sync_code',syncCode);}
+let cloudSaveTimer=null;
+
+function genCloudCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c='';for(let i=0;i<6;i++)c+=chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+let lastCloudStatus='';
+function setCloudStatus(txt){lastCloudStatus=txt;const el=document.getElementById('cloud-status');if(el)el.textContent=txt;}
+function pushCloud(){
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer=setTimeout(()=>{
+    setCloudStatus('☁️ Synchronisation…');
+    db.collection('hellofresh_users').doc(syncCode).set({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:Date.now()})
+      .then(()=>setCloudStatus('✅ Synchronisé'))
+      .catch(()=>setCloudStatus('⚠️ Erreur de synchronisation'));
+  },1000);
+}
+function pullCloud(code,cb){
+  setCloudStatus('☁️ Récupération…');
+  db.collection('hellofresh_users').doc(code).get().then(snap=>{
+    if(snap.exists){
+      const d=snap.data();
+      recettes=d.recettes||recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
+      localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player}));
+    }
+    if(cb)cb(snap.exists);
+  }).catch(()=>{setCloudStatus('⚠️ Pas de connexion');if(cb)cb(false);});
+}
+function openCloudModal(){
+  document.getElementById('cloud-code-display').value=syncCode;
+  document.getElementById('cloud-code-input').value='';
+  document.getElementById('cloud-status').textContent=lastCloudStatus;
+  document.getElementById('modal-cloud').classList.add('open');
+}
+function closeCloudModal(){document.getElementById('modal-cloud').classList.remove('open');}
+function copyCloudCode(){
+  if(navigator.clipboard)navigator.clipboard.writeText(syncCode).then(()=>setCloudStatus('📋 Code copié !'));
+  else setCloudStatus('Code : '+syncCode);
+}
+function restoreFromCode(){
+  const code=document.getElementById('cloud-code-input').value.trim().toUpperCase();
+  if(!code)return;
+  if(!confirm('Cela va remplacer vos données actuelles par celles du code '+code+'. Continuer ?'))return;
+  pullCloud(code,(existed)=>{
+    if(existed){
+      syncCode=code;localStorage.setItem('hf_sync_code',syncCode);
+      renderRecettes();renderLevelBar();
+      document.getElementById('cloud-code-display').value=syncCode;
+      setCloudStatus('✅ Données récupérées !');
+    } else setCloudStatus('❌ Aucune donnée pour ce code.');
+  });
+}
 const RAYONS=['légumes','fruits','viandes','poissons','frais','épicerie','surgelés','autres'];
 const RAYON_ICONS={'légumes':'🥦','fruits':'🍎','viandes':'🥩','poissons':'🐟','frais':'🥛','épicerie':'🛒','surgelés':'❄️','autres':'📦'};
 const TAG_LABELS={veggie:'🌿 Véggie',vegan:'🌱 Végan',rapide:'⚡ Rapide',long:'🕐 Long',poisson:'🐟 Poisson',proteine:'💪 Protéiné'};
@@ -396,7 +506,10 @@ const DIFF_CLS={easy:'tag-diff-easy',medium:'tag-diff-med',hard:'tag-diff-hard'}
 
 let recettes=[],coursesDone={},manualItems=[],frigo=[],persons=2;
 let editId=null,pendingImg=null,filterActive='all',starVal=3,selectedTagsSet=new Set();
-let cuisineSteps=[],cuisineIdx=0;
+let cuisineSteps=[],cuisineIdx=0,cuisineRecetteId=null;
+let player={xp:0,level:1};
+const MAX_LEVEL=100;
+const XP_PAR_DIFF={easy:20,medium:35,hard:50};
 
 /* ---- STORAGE ---- */
 function load(){
@@ -407,14 +520,16 @@ function load(){
     persons=d.persons||2;
     manualItems=d.manualItems||[];
     frigo=d.frigo||[];
-  }catch(e){recettes=defs();coursesDone={};persons=2;manualItems=[];frigo=[];}
+    player=d.player||{xp:0,level:1};
+  }catch(e){recettes=defs();coursesDone={};persons=2;manualItems=[];frigo=[];player={xp:0,level:1};}
 }
 function save(){
-  try{localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo}));}
+  try{localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player}));}
   catch(e){alert('Erreur de sauvegarde. Pense à exporter tes données !');}
+  pushCloud();
 }
 function exportData(){
-  const data=JSON.stringify({recettes,coursesDone,persons,manualItems,frigo},null,2);
+  const data=JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player},null,2);
   if(navigator.share){
     const file=new File([data],'hellofresh.json',{type:'application/json'});
     navigator.share({files:[file],title:'Hello Fresh — Sauvegarde'}).catch(()=>copyFallback(data));
@@ -430,7 +545,7 @@ function importData(evt){
   rd.onload=e=>{
     try{
       const d=JSON.parse(e.target.result);
-      if(d.recettes){recettes=d.recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];save();renderRecettes();alert('✅ Données importées !');}
+      if(d.recettes){recettes=d.recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};save();renderRecettes();renderLevelBar();alert('✅ Données importées !');}
     }catch(e){alert('❌ Fichier invalide.');}
   };
   rd.readAsText(f);
@@ -473,6 +588,53 @@ function frigoScore(r){
     else missing.push(i.nom);
   });
   return{pct:Math.round(have/r.ingr.length*100),have,total:r.ingr.length,missing};
+}
+
+/* ---- NIVEAU / XP ---- */
+function xpNeeded(lvl){return 80+(lvl-1)*15;}
+function xpForRecette(r){return XP_PAR_DIFF[r&&r.diff]||20;}
+function gainXp(amount){
+  if(player.level>=MAX_LEVEL){save();return;}
+  player.xp+=amount;
+  let leveled=false;
+  while(player.level<MAX_LEVEL&&player.xp>=xpNeeded(player.level)){
+    player.xp-=xpNeeded(player.level);
+    player.level++;
+    leveled=true;
+  }
+  if(player.level>=MAX_LEVEL){player.level=MAX_LEVEL;player.xp=0;}
+  save();
+  renderLevelBar();
+  showXpToast(amount);
+  if(leveled)setTimeout(showLevelUp,400);
+}
+function renderLevelBar(){
+  const badge=document.getElementById('level-badge');
+  const bar=document.getElementById('level-progress');
+  const txt=document.getElementById('level-xp-text');
+  if(!badge)return;
+  badge.textContent='Niv. '+player.level;
+  if(player.level>=MAX_LEVEL){
+    bar.style.width='100%';txt.textContent='NIVEAU MAX';return;
+  }
+  const need=xpNeeded(player.level);
+  const pct=Math.max(0,Math.min(100,Math.round(player.xp/need*100)));
+  bar.style.width=pct+'%';
+  txt.textContent=`${player.xp}/${need} XP`;
+}
+function showXpToast(amount){
+  const t=document.createElement('div');
+  t.className='xp-toast';
+  t.textContent=`+${amount} XP`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),1800);
+}
+function showLevelUp(){
+  const t=document.createElement('div');
+  t.className='level-toast';
+  t.innerHTML=`🎉 Niveau ${player.level} atteint !`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
 }
 
 function getAllIngrs(){
@@ -826,7 +988,7 @@ function renderSuggestions(){
 function startCuisine(id){
   const r=recettes.find(x=>x.id===id);
   if(!r||!r.etapes||!r.etapes.length){alert('Aucune étape de préparation dans cette recette.');return;}
-  cuisineSteps=r.etapes;cuisineIdx=0;
+  cuisineSteps=r.etapes;cuisineIdx=0;cuisineRecetteId=id;
   document.getElementById('cuisine-title').textContent=r.nom;
   updateCuisineStep();
   document.getElementById('cuisine-modal').classList.add('open');
@@ -837,7 +999,11 @@ function updateCuisineStep(){
   document.getElementById('cuisine-next-btn').textContent=cuisineIdx===cuisineSteps.length-1?'✅ Terminer':'Suivante ▶';
 }
 function cuisineNav(d){
-  if(d===1&&cuisineIdx===cuisineSteps.length-1){closeCuisine();return;}
+  if(d===1&&cuisineIdx===cuisineSteps.length-1){
+    const r=recettes.find(x=>x.id===cuisineRecetteId);
+    if(r)gainXp(xpForRecette(r));
+    closeCuisine();return;
+  }
   cuisineIdx=Math.max(0,Math.min(cuisineSteps.length-1,cuisineIdx+d));
   updateCuisineStep();
 }
@@ -984,7 +1150,14 @@ function saveRecette(){
 load();
 document.getElementById('p-val').textContent=persons;
 renderRecettes();
+renderLevelBar();
 checkInstallBanner();
+pullCloud(syncCode,(existed)=>{
+  renderRecettes();renderLevelBar();
+  if(document.getElementById('view-courses').classList.contains('active'))renderCourses();
+  if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
+  if(!existed)pushCloud();
+});
 </script>
 </body>
 </html>
