@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hello Fresh">
@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{touch-action:manipulation}
 :root{--hf:#6aaa41;--hfd:#4d8a2a;--hfl:#edf6e6;--hfb:#b8dfa0;--hft:#2d5a1a;--safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom)}
 body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#f5f5f5;color:#1a1a1a;overscroll-behavior:none}
 .app{max-width:430px;margin:0 auto;display:flex;flex-direction:column;min-height:100dvh;background:#f5f5f5}
@@ -74,7 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 /* SEARCH & FILTERS */
 .search-bar{display:flex;gap:6px;margin-bottom:10px}
-.search-bar input{flex:1;border-radius:10px;border:1px solid #ddd;background:#fff;color:#1a1a1a;font-size:15px;padding:9px 12px;font-family:inherit;-webkit-appearance:none}
+.search-bar input{flex:1;border-radius:10px;border:1px solid #ddd;background:#fff;color:#1a1a1a;font-size:16px;padding:9px 12px;font-family:inherit;-webkit-appearance:none}
 .filters{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .filters::-webkit-scrollbar{display:none}
 .fchip{padding:5px 11px;border-radius:20px;font-size:12px;border:1px solid #ddd;background:#fff;color:#666;cursor:pointer;white-space:nowrap;flex-shrink:0}
@@ -89,7 +90,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .modal h3{font-size:16px;font-weight:600;margin-bottom:14px}
 .field{margin-bottom:11px}
 .field label{font-size:13px;color:#666;display:block;margin-bottom:4px;font-weight:500}
-.field input,.field textarea,.field select{width:100%;border-radius:10px;border:1px solid #ddd;background:#f9f9f9;color:#1a1a1a;font-family:inherit;font-size:15px;padding:9px 11px;-webkit-appearance:none;appearance:none}
+.field input,.field textarea,.field select{width:100%;border-radius:10px;border:1px solid #ddd;background:#f9f9f9;color:#1a1a1a;font-family:inherit;font-size:16px;padding:9px 11px;-webkit-appearance:none;appearance:none}
 .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .field textarea{resize:vertical;min-height:55px}
 .modal-actions{display:flex;gap:8px;margin-top:14px}
@@ -99,10 +100,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .ingr-row input:nth-child(2){flex:0 0 50px}
 .ingr-nom-wrap{flex:1;position:relative}
 .ingr-nom-wrap input{width:100%}
-.ingr-rayon-sel{flex:0 0 80px;font-size:11px;border-radius:8px;border:1px solid #ddd;background:#f9f9f9;padding:9px 4px;color:#1a1a1a;font-family:inherit;background-image:none}
+.ingr-rayon-sel{flex:0 0 80px;font-size:16px;border-radius:8px;border:1px solid #ddd;background:#f9f9f9;padding:9px 4px;color:#1a1a1a;font-family:inherit;background-image:none}
 .step-row{display:flex;gap:7px;margin-bottom:6px;align-items:flex-start}
 .step-num{width:22px;height:22px;border-radius:50%;background:var(--hfl);color:var(--hft);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:8px}
-.step-row textarea{flex:1;min-height:44px;font-size:14px}
+.step-row textarea{flex:1;min-height:44px;font-size:16px}
 .del-btn{background:none;border:none;color:#ccc;cursor:pointer;padding:4px;font-size:16px;line-height:1;font-family:inherit}
 .img-input{display:none}
 .sug-box{display:none;position:absolute;background:#fff;border:1px solid #ddd;border-radius:10px;z-index:200;max-height:120px;overflow-y:auto;width:100%;top:calc(100% + 2px);left:0;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
@@ -150,7 +151,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .c-cb svg{width:13px;height:13px;fill:transparent}
 .c-cb.done svg{fill:var(--hf)}
 .add-article-row{display:flex;gap:7px;margin-bottom:11px}
-.add-article-row input{flex:1;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:15px;padding:9px 12px;font-family:inherit;-webkit-appearance:none}
+.add-article-row input{flex:1;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:16px;padding:9px 12px;font-family:inherit;-webkit-appearance:none}
 
 /* FRIGO */
 .frigo-item{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-bottom:1px solid #f0f0f0}
@@ -160,8 +161,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .frigo-card{background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden;margin-bottom:11px}
 .frigo-rayon-title{font-size:12px;font-weight:600;color:var(--hft);text-transform:uppercase;letter-spacing:0.4px;padding:8px 13px 5px;background:var(--hfl);border-bottom:1px solid var(--hfb)}
 .frigo-add-row{display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap}
-.frigo-add-row input{flex:1;min-width:90px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:14px;padding:9px 10px;font-family:inherit;-webkit-appearance:none}
-.frigo-add-row select{flex:0 0 95px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:12px;padding:9px 6px;font-family:inherit;-webkit-appearance:none;appearance:none}
+.frigo-add-row input{flex:1;min-width:90px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:16px;padding:9px 10px;font-family:inherit;-webkit-appearance:none}
+.frigo-add-row select{flex:0 0 95px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:16px;padding:9px 6px;font-family:inherit;-webkit-appearance:none;appearance:none}
 
 /* SUGGESTIONS FRIGO */
 .suggest-section{background:var(--hfl);border:1px solid var(--hfb);border-radius:16px;padding:14px;margin-bottom:16px}
@@ -1075,12 +1076,12 @@ function addIngrRow(qte='',unit='',nom='',rayon='autres'){
   div.className='ingr-row';
   const uid='ir_'+Date.now()+Math.random().toString(36).slice(2);
   div.innerHTML=`
-    <input type="number" placeholder="Qté" value="${qte}" step="any" style="flex:0 0 52px;border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 7px;font-size:14px;font-family:inherit;-webkit-appearance:none">
-    <input type="text" placeholder="Unité" value="${unit}" style="flex:0 0 48px;border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 7px;font-size:14px;font-family:inherit">
+    <input type="number" placeholder="Qté" value="${qte}" step="any" style="flex:0 0 52px;border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 7px;font-size:16px;font-family:inherit;-webkit-appearance:none">
+    <input type="text" placeholder="Unité" value="${unit}" style="flex:0 0 48px;border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 7px;font-size:16px;font-family:inherit">
     <div class="ingr-nom-wrap">
       <input type="text" placeholder="Ingrédient" value="${nom}" id="${uid}" autocomplete="off" autocorrect="off"
         oninput="showSug('${uid}',this.value)" onblur="setTimeout(()=>hideSug('${uid}'),200)"
-        style="border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 9px;font-size:14px;font-family:inherit">
+        style="border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 9px;font-size:16px;font-family:inherit">
       <div class="sug-box" id="s_${uid}"></div>
     </div>
     <select class="ingr-rayon-sel" id="r_${uid}">
@@ -1111,7 +1112,7 @@ function addStepRow(text=''){
   const div=document.createElement('div');div.className='step-row';
   div.innerHTML=`
     <div class="step-num">${n}</div>
-    <textarea placeholder="Ex: Faire revenir l'oignon 3 min à feu moyen" style="border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px;font-size:14px;font-family:inherit">${text}</textarea>
+    <textarea placeholder="Ex: Faire revenir l'oignon 3 min à feu moyen" style="border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px;font-size:16px;font-family:inherit">${text}</textarea>
     <button onclick="this.parentNode.remove();reNum()" class="del-btn" style="margin-top:10px;font-size:16px">✕</button>`;
   rows.appendChild(div);
 }
@@ -1145,6 +1146,15 @@ function saveRecette(){
   }
   save();closeModal();renderRecettes();
 }
+
+/* ---- ANTI-ZOOM (iOS) ---- */
+document.addEventListener('gesturestart',e=>e.preventDefault());
+let lastTouchEnd=0;
+document.addEventListener('touchend',e=>{
+  const now=Date.now();
+  if(now-lastTouchEnd<=300)e.preventDefault();
+  lastTouchEnd=now;
+},{passive:false});
 
 /* ---- INIT ---- */
 load();
