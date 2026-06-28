@@ -950,7 +950,7 @@ function renderCourses(){
   tags.innerHTML=sel.map(r=>`<span style="font-size:12px;padding:3px 9px;border-radius:20px;background:var(--hfl);color:var(--hft);border:1px solid var(--hfb)">${r.nom}</span>`).join('');
   const map={};
   sel.forEach(r=>r.ingr.forEach(i=>{
-    const k=(i.nom+i.unit).toLowerCase().replace(/\s/g,'');
+    const k=(i.nom+i.unit).toLowerCase().replace(/[\s'"]/g,'');
     const sc=scaleQ(i.qte,r.basePersons||2,persons);
     if(!map[k])map[k]={nom:i.nom,unit:i.unit,total:0,rayon:i.rayon||'autres'};
     map[k].total+=sc;
@@ -963,7 +963,7 @@ function renderCourses(){
     html+=`<div style="background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden;margin-bottom:10px">
       <div class="rayon-title">${RAYON_ICONS[rayon]} ${rayon.charAt(0).toUpperCase()+rayon.slice(1)}</div>
       ${byRayon[rayon].sort((a,b)=>a.nom.localeCompare(b.nom)).map(item=>{
-        const k=(item.nom+item.unit).toLowerCase().replace(/\s/g,'');
+        const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
         const done=coursesDone[k];
         const t=parseFloat(item.total.toFixed(1));
         return`<div class="courses-item" style="${done?'opacity:0.35':''}">
@@ -1027,7 +1027,7 @@ function shareList(){
   if(!sel.length){alert('Aucune recette sélectionnée.');return;}
   const map={};
   sel.forEach(r=>r.ingr.forEach(i=>{
-    const k=(i.nom+i.unit).toLowerCase().replace(/\s/g,'');
+    const k=(i.nom+i.unit).toLowerCase().replace(/[\s'"]/g,'');
     const sc=scaleQ(i.qte,r.basePersons||2,persons);
     if(!map[k])map[k]={nom:i.nom,unit:i.unit,total:0};
     map[k].total+=sc;
