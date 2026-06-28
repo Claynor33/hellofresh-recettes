@@ -212,6 +212,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 /* CLOUD SYNC */
 #cloud-code-display{font-weight:700;letter-spacing:1px;text-align:center;font-size:18px;color:var(--hft)}
+
+/* PLANNING SEMAINE */
+.weekly-section{background:var(--hfl);border:1px solid var(--hfb);border-radius:16px;padding:13px;margin-bottom:14px}
+.weekly-section h3{font-size:14px;font-weight:700;color:var(--hft);margin-bottom:10px}
+.weekly-card{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:9px 11px;margin-bottom:8px;cursor:pointer}
+.weekly-card:last-child{margin-bottom:0}
+.weekly-card-img{width:42px;height:42px;border-radius:9px;object-fit:cover;flex-shrink:0;background:var(--hfl);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}
+.weekly-card-img img{width:42px;height:42px;object-fit:cover}
+.weekly-card-info{flex:1;min-width:0}
+.weekly-card-nom{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weekly-card-meta{font-size:11px;color:#888;margin-top:2px}
+.weekly-card-acts{display:flex;gap:6px;flex-shrink:0}
+.weekly-card-cook{background:var(--hf);color:#fff;border:none;border-radius:8px;padding:7px 9px;font-size:13px;cursor:pointer}
+
+/* MINUTEUR */
+#cuisine-timer-wrap{margin-top:6px}
+.timer-display{text-align:center;font-size:34px;font-weight:700;color:var(--hfd);margin-top:10px;letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -254,6 +271,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
         </div>
         <button class="install-banner-close" onclick="dismissBanner()">✕</button>
       </div>
+      <div id="weekly-section"></div>
       <div class="top-bar">
         <div>
           <h2>Mes recettes</h2>
@@ -285,7 +303,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     <div class="view" id="view-courses">
       <div class="top-bar">
         <h2>Liste de courses</h2>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-hf btn-sm" onclick="finishShopping()">✅ Courses faites</button>
           <button class="btn btn-sm" onclick="shareList()">↗ Partager</button>
           <button class="btn btn-sm" onclick="resetCourses()">↺ Réinit.</button>
         </div>
@@ -423,6 +442,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     <button class="detail-back" onclick="closeCuisine()" style="margin-bottom:10px;color:#888">✕ Fermer le mode cuisine</button>
     <div style="font-size:14px;color:#888;margin-bottom:8px;font-weight:500" id="cuisine-title"></div>
     <div class="cuisine-step-text" id="cuisine-step"></div>
+    <div id="cuisine-timer-wrap"></div>
     <div class="cuisine-nav">
       <button class="btn btn-hfl" style="padding:12px 18px" onclick="cuisineNav(-1)">◀ Précédente</button>
       <span style="font-size:13px;color:#888;font-weight:500" id="cuisine-counter"></span>
@@ -741,13 +761,49 @@ function tagsHtml(tags,overlay){
   return tags.map(t=>`<span class="tag ${overlay?'tag-time':TAG_CLS[t]||''}">${TAG_LABELS[t]||t}</span>`).join('');
 }
 
+/* ---- PLANNING SEMAINE ---- */
+function renderWeeklySection(){
+  const el=document.getElementById('weekly-section');
+  if(!el)return;
+  const week=recettes.filter(r=>r.thisWeek);
+  if(!week.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="weekly-section">
+    <h3>📅 Cette semaine (${week.length})</h3>
+    ${week.map(r=>`<div class="weekly-card" onclick="openDetail(${r.id})">
+      <div class="weekly-card-img">${r.img?`<img src="${r.img}" alt="${r.nom}">`:'🍽️'}</div>
+      <div class="weekly-card-info">
+        <div class="weekly-card-nom">${r.nom}</div>
+        <div class="weekly-card-meta">⏱ ${r.time||'?'} min · ${DIFF_LABEL[r.diff||'easy']}</div>
+      </div>
+      <div class="weekly-card-acts">
+        <button class="weekly-card-cook" onclick="event.stopPropagation();startCuisine(${r.id})">👨‍🍳</button>
+        <button class="del-btn" onclick="event.stopPropagation();removeFromWeek(${r.id})">✕</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+function removeFromWeek(id){
+  const r=recettes.find(x=>x.id===id);if(!r)return;
+  r.thisWeek=false;save();renderRecettes();
+}
+function finishShopping(){
+  const sel=recettes.filter(r=>r.selected);
+  if(!sel.length){alert('Aucune recette sélectionnée pour la semaine.');return;}
+  sel.forEach(r=>r.thisWeek=true);
+  save();
+  alert(`✅ ${sel.length} recette(s) ajoutée(s) à "Cette semaine" !`);
+  switchTab('recettes');
+}
+
 /* ---- RECETTES ---- */
 function renderRecettes(){
+  renderWeeklySection();
   const list=document.getElementById('recettes-list');
   const q=(document.getElementById('search-input').value||'').toLowerCase();
   const sel=recettes.filter(r=>r.selected).length;
   document.getElementById('sel-count').textContent=sel+' sélectionnée(s)';
   let filtered=recettes.filter(r=>{
+    if(r.thisWeek)return false;
     if(q&&!r.nom.toLowerCase().includes(q))return false;
     if(filterActive==='all')return true;
     if(filterActive==='fav')return(r.stars||0)>=4;
@@ -1066,17 +1122,68 @@ function updateCuisineStep(){
   document.getElementById('cuisine-step').textContent=cuisineSteps[cuisineIdx];
   document.getElementById('cuisine-counter').textContent=`Étape ${cuisineIdx+1} / ${cuisineSteps.length}`;
   document.getElementById('cuisine-next-btn').textContent=cuisineIdx===cuisineSteps.length-1?'✅ Terminer':'Suivante ▶';
+  renderCuisineTimerControl();
 }
 function cuisineNav(d){
   if(d===1&&cuisineIdx===cuisineSteps.length-1){
     const r=recettes.find(x=>x.id===cuisineRecetteId);
-    if(r)gainXp(xpForRecette(r));
-    closeCuisine();return;
+    if(r){gainXp(xpForRecette(r));r.thisWeek=false;r.selected=false;save();}
+    closeCuisine();
+    switchTab('recettes');
+    return;
   }
   cuisineIdx=Math.max(0,Math.min(cuisineSteps.length-1,cuisineIdx+d));
   updateCuisineStep();
 }
-function closeCuisine(){document.getElementById('cuisine-modal').classList.remove('open');}
+function closeCuisine(){
+  clearInterval(stepTimerInterval);
+  document.getElementById('cuisine-modal').classList.remove('open');
+}
+
+/* ---- MINUTEUR ---- */
+let stepTimerInterval=null;
+function renderCuisineTimerControl(){
+  clearInterval(stepTimerInterval);
+  const wrap=document.getElementById('cuisine-timer-wrap');
+  const text=cuisineSteps[cuisineIdx]||'';
+  const m=text.match(/(\d+)\s*(?:min|minute)/i);
+  if(!m){wrap.innerHTML='';return;}
+  const mins=parseInt(m[1]);
+  wrap.innerHTML=`<button class="btn btn-hfl" style="width:100%;justify-content:center;padding:10px" onclick="startStepTimer(${mins})">⏱ Lancer le minuteur (${mins} min)</button><div class="timer-display" id="timer-display"></div>`;
+}
+function startStepTimer(mins){
+  clearInterval(stepTimerInterval);
+  let remaining=mins*60;
+  const wrap=document.getElementById('cuisine-timer-wrap');
+  const btn=wrap.querySelector('button');
+  if(btn)btn.style.display='none';
+  const disp=document.getElementById('timer-display');
+  const render=()=>{
+    const mm=Math.floor(remaining/60),ss=remaining%60;
+    disp.textContent=`${mm}:${ss.toString().padStart(2,'0')}`;
+  };
+  render();
+  stepTimerInterval=setInterval(()=>{
+    remaining--;
+    if(remaining<=0){
+      clearInterval(stepTimerInterval);
+      disp.textContent='⏰ Terminé !';
+      if(navigator.vibrate)navigator.vibrate([200,100,200,100,200]);
+      playTimerBeep();
+      return;
+    }
+    render();
+  },1000);
+}
+function playTimerBeep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator();const g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=880;g.gain.value=0.2;
+    o.start();setTimeout(()=>{o.stop();ctx.close();},600);
+  }catch(e){}
+}
 
 /* ---- MODAL ---- */
 function toggleTag(el){
