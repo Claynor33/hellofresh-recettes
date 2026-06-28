@@ -68,6 +68,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .tag-long{background:#fce4ec;color:#880e4f;border-color:#f48fb1}
 .tag-poisson{background:#e0f7fa;color:#006064;border-color:#80deea}
 .tag-proteine{background:#f3e5f5;color:#4a148c;border-color:#ce93d8}
+.tag-volaille{background:#fff8e1;color:#8a5a00;border-color:#ffd180}
+.tag-rouge{background:#fde8e8;color:#9b1c1c;border-color:#f3a8a8}
 .tag-diff-easy{background:#edf6e6;color:#2d5a1a;border-color:#b8dfa0}
 .tag-diff-med{background:#faeeda;color:#633806;border-color:#f0c070}
 .tag-diff-hard{background:#fcebeb;color:#791f1f;border-color:#e8a0a0}
@@ -121,6 +123,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .tag-opt.t-long.selected{background:#fce4ec;color:#880e4f;border-color:#f48fb1}
 .tag-opt.t-poisson.selected{background:#e0f7fa;color:#006064;border-color:#80deea}
 .tag-opt.t-proteine.selected{background:#f3e5f5;color:#4a148c;border-color:#ce93d8}
+.tag-opt.t-volaille.selected{background:#fff8e1;color:#8a5a00;border-color:#ffd180}
+.tag-opt.t-rouge.selected{background:#fde8e8;color:#9b1c1c;border-color:#f3a8a8}
 
 /* DETAIL */
 .detail-back{display:flex;align-items:center;gap:6px;margin-bottom:12px;cursor:pointer;color:var(--hfd);font-size:14px;font-weight:600;background:none;border:none;padding:0;font-family:inherit}
@@ -399,6 +403,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
           <span class="tag-opt t-rapide" data-t="rapide" onclick="toggleTag(this)">⚡ Rapide</span>
           <span class="tag-opt t-long" data-t="long" onclick="toggleTag(this)">🕐 Long</span>
           <span class="tag-opt t-poisson" data-t="poisson" onclick="toggleTag(this)">🐟 Poisson</span>
+          <span class="tag-opt t-volaille" data-t="volaille" onclick="toggleTag(this)">🍗 Volaille</span>
+          <span class="tag-opt t-rouge" data-t="rouge" onclick="toggleTag(this)">🥩 Viande rouge</span>
           <span class="tag-opt t-proteine" data-t="proteine" onclick="toggleTag(this)">💪 Protéiné</span>
         </div>
       </div>
@@ -570,8 +576,8 @@ function restoreFromCode(){
 }
 const RAYONS=['légumes','fruits','viandes','poissons','frais','épicerie','surgelés','autres'];
 const RAYON_ICONS={'légumes':'🥦','fruits':'🍎','viandes':'🥩','poissons':'🐟','frais':'🥛','épicerie':'🛒','surgelés':'❄️','autres':'📦'};
-const TAG_LABELS={veggie:'🌿 Véggie',vegan:'🌱 Végan',rapide:'⚡ Rapide',long:'🕐 Long',poisson:'🐟 Poisson',proteine:'💪 Protéiné'};
-const TAG_CLS={veggie:'tag-veggie',vegan:'tag-vegan',rapide:'tag-rapide',long:'tag-long',poisson:'tag-poisson',proteine:'tag-proteine'};
+const TAG_LABELS={veggie:'🌿 Véggie',vegan:'🌱 Végan',rapide:'⚡ Rapide',long:'🕐 Long',poisson:'🐟 Poisson',volaille:'🍗 Volaille',rouge:'🥩 Viande rouge',proteine:'💪 Protéiné'};
+const TAG_CLS={veggie:'tag-veggie',vegan:'tag-vegan',rapide:'tag-rapide',long:'tag-long',poisson:'tag-poisson',volaille:'tag-volaille',rouge:'tag-rouge',proteine:'tag-proteine'};
 const DIFF_LABEL={easy:'Facile',medium:'Moyen',hard:'Difficile'};
 const DIFF_CLS={easy:'tag-diff-easy',medium:'tag-diff-med',hard:'tag-diff-hard'};
 
@@ -647,10 +653,10 @@ function compressImage(file,maxDim,quality){
 
 /* ---- DEFAULTS ---- */
 function defs(){return[
-  {id:1,nom:"Poulet aux champignons",img:null,basePersons:2,selected:false,stars:4,diff:'easy',time:25,tags:['proteine'],
+  {id:1,nom:"Poulet aux champignons",img:null,basePersons:2,selected:false,stars:4,diff:'easy',time:25,tags:['proteine','volaille'],
    ingr:[{qte:2,unit:"",nom:"blancs de poulet",rayon:"viandes"},{qte:200,unit:"g",nom:"champignons",rayon:"légumes"},{qte:1,unit:"",nom:"oignon",rayon:"légumes"},{qte:15,unit:"cl",nom:"crème fraîche",rayon:"frais"}],
    etapes:["Émincer l'oignon et faire revenir à feu moyen 3 min.","Ajouter les champignons coupés, cuire 5 min.","Dorer les blancs de poulet 6 min de chaque côté.","Verser la crème fraîche, assaisonner et mijoter 5 min."]},
-  {id:2,nom:"Pasta bolognaise",img:null,basePersons:2,selected:false,stars:5,diff:'easy',time:35,tags:['proteine'],
+  {id:2,nom:"Pasta bolognaise",img:null,basePersons:2,selected:false,stars:5,diff:'easy',time:35,tags:['proteine','rouge'],
    ingr:[{qte:300,unit:"g",nom:"pâtes",rayon:"épicerie"},{qte:400,unit:"g",nom:"viande hachée",rayon:"viandes"},{qte:400,unit:"g",nom:"tomates pelées",rayon:"épicerie"},{qte:1,unit:"",nom:"oignon",rayon:"légumes"},{qte:2,unit:"",nom:"gousses d'ail",rayon:"légumes"}],
    etapes:["Cuire les pâtes al dente selon le paquet.","Faire revenir l'oignon et l'ail émincés 3 min.","Ajouter la viande hachée et cuire 8 min.","Incorporer les tomates pelées, mijoter 15 min.","Mélanger avec les pâtes égouttées et servir."]},
   {id:3,nom:"Saumon grillé légumes",img:null,basePersons:2,selected:false,stars:4,diff:'easy',time:20,tags:['poisson','rapide'],
@@ -853,12 +859,14 @@ function categoryOf(r){
   const t=r.tags||[];
   if(t.includes('vegan')||t.includes('veggie'))return 'veggie';
   if(t.includes('poisson'))return 'poisson';
-  return 'viande';
+  if(t.includes('volaille'))return 'volaille';
+  if(t.includes('rouge'))return 'rouge';
+  return 'autre';
 }
 function shuffle(arr){return arr.sort(()=>Math.random()-0.5);}
 function tirage(){
   recettes.forEach(r=>r.selected=false);
-  const groups={viande:[],poisson:[],veggie:[]};
+  const groups={veggie:[],poisson:[],volaille:[],rouge:[],autre:[]};
   recettes.forEach(r=>groups[categoryOf(r)].push(r));
   Object.values(groups).forEach(shuffle);
   let catOrder=shuffle(Object.keys(groups).filter(k=>groups[k].length));
