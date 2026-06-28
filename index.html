@@ -482,7 +482,6 @@ const db=firebase.firestore();
 let syncCode=localStorage.getItem('hf_sync_code');
 if(!syncCode){syncCode=genCloudCode();localStorage.setItem('hf_sync_code',syncCode);}
 let cloudSaveTimer=null;
-let cloudUnsub=null;
 
 function genCloudCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -512,33 +511,6 @@ function pullCloud(code,cb){
   }).catch(()=>{setCloudStatus('⚠️ Pas de connexion');if(cb)cb(false);});
 }
 
-function applyRemoteData(d){
-  recettes=d.recettes||recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
-  localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player}));
-  renderLevelBar();
-  const activeView=document.querySelector('.view.active');
-  const modalOpen=document.getElementById('modal-add').classList.contains('open');
-  if(modalOpen)return;
-  if(activeView&&activeView.id==='view-recettes')renderRecettes();
-  if(activeView&&activeView.id==='view-courses'){document.getElementById('p-val').textContent=persons;renderCourses();}
-  if(activeView&&activeView.id==='view-frigo')renderFrigo();
-}
-
-function startCloudListener(code){
-  if(cloudUnsub){cloudUnsub();cloudUnsub=null;}
-  let firstSnap=true;
-  cloudUnsub=db.collection('hellofresh_users').doc(code).onSnapshot(snap=>{
-    if(snap.metadata.hasPendingWrites){setCloudStatus('☁️ Synchronisation…');return;}
-    if(!snap.exists){
-      if(firstSnap)pushCloud();
-      firstSnap=false;
-      return;
-    }
-    firstSnap=false;
-    applyRemoteData(snap.data());
-    setCloudStatus('✅ Synchronisé');
-  },()=>{setCloudStatus('⚠️ Pas de connexion');});
-}
 function openCloudModal(){
   document.getElementById('cloud-code-display').value=syncCode;
   document.getElementById('cloud-code-input').value='';
@@ -571,7 +543,6 @@ function restoreFromCode(){
       renderRecettes();renderLevelBar();
       document.getElementById('cloud-code-display').value=syncCode;
       setCloudStatus('✅ Données récupérées !');
-      startCloudListener(syncCode);
     } else setCloudStatus('❌ Aucune donnée pour ce code.');
   });
 }
@@ -1441,7 +1412,12 @@ document.getElementById('p-val').textContent=persons;
 renderRecettes();
 renderLevelBar();
 checkInstallBanner();
-startCloudListener(syncCode);
+pullCloud(syncCode,(existed)=>{
+  renderRecettes();renderLevelBar();
+  if(document.getElementById('view-courses').classList.contains('active')){document.getElementById('p-val').textContent=persons;renderCourses();}
+  if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
+  if(!existed)pushCloud();
+});
 </script>
 </body>
 </html>
