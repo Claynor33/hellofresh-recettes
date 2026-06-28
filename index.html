@@ -789,7 +789,8 @@ function removeFromWeek(id){
 function finishShopping(){
   const sel=recettes.filter(r=>r.selected);
   if(!sel.length){alert('Aucune recette sélectionnée pour la semaine.');return;}
-  sel.forEach(r=>r.thisWeek=true);
+  sel.forEach(r=>{r.thisWeek=true;r.selected=false;});
+  coursesDone={};manualItems=[];
   save();
   alert(`✅ ${sel.length} recette(s) ajoutée(s) à "Cette semaine" !`);
   switchTab('recettes');
