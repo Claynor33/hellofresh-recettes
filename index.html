@@ -528,15 +528,23 @@ function copyCloudCode(){
   if(navigator.clipboard)navigator.clipboard.writeText(syncCode).then(()=>setCloudStatus('📋 Code copié !'));
   else setCloudStatus('Code : '+syncCode);
 }
+function flushPushNow(){
+  clearTimeout(cloudSaveTimer);
+  setCloudStatus('☁️ Envoi en cours…');
+  return db.collection('hellofresh_users').doc(syncCode).set({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt})
+    .catch(()=>{});
+}
 function syncNow(){
-  pullCloud(syncCode,(existed)=>{
-    if(existed){
-      renderRecettes();renderLevelBar();
-      if(document.getElementById('view-courses').classList.contains('active')){document.getElementById('p-val').textContent=persons;renderCourses();}
-      if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
-      setCloudStatus('✅ Synchronisé !');
-    } else setCloudStatus('☁️ Aucune donnée enregistrée encore pour ce code.');
-  },{force:true});
+  flushPushNow().then(()=>{
+    pullCloud(syncCode,(existed)=>{
+      if(existed){
+        renderRecettes();renderLevelBar();
+        if(document.getElementById('view-courses').classList.contains('active')){document.getElementById('p-val').textContent=persons;renderCourses();}
+        if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
+        setCloudStatus('✅ Synchronisé !');
+      } else setCloudStatus('☁️ Aucune donnée enregistrée encore pour ce code.');
+    });
+  });
 }
 
 function restoreFromCode(){
