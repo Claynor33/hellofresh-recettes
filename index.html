@@ -1127,7 +1127,12 @@ function updateCuisineStep(){
 function cuisineNav(d){
   if(d===1&&cuisineIdx===cuisineSteps.length-1){
     const r=recettes.find(x=>x.id===cuisineRecetteId);
-    if(r){gainXp(xpForRecette(r));r.thisWeek=false;r.selected=false;save();}
+    if(r){
+      gainXp(xpForRecette(r));
+      r.thisWeek=false;r.selected=false;
+      r.ingr.forEach(i=>{const idx=frigo.findIndex(f=>f.nom.toLowerCase()===i.nom.toLowerCase());if(idx>=0)frigo.splice(idx,1);});
+      save();
+    }
     closeCuisine();
     switchTab('recettes');
     return;
