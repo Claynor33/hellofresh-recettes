@@ -494,18 +494,24 @@ function pushCloud(){
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer=setTimeout(()=>{
     setCloudStatus('☁️ Synchronisation…');
-    db.collection('hellofresh_users').doc(syncCode).set({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:Date.now()})
+    db.collection('hellofresh_users').doc(syncCode).set({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt})
       .then(()=>setCloudStatus('✅ Synchronisé'))
       .catch(()=>setCloudStatus('⚠️ Erreur de synchronisation'));
   },1000);
 }
-function pullCloud(code,cb){
+function pullCloud(code,cb,opts){
+  const force=opts&&opts.force;
   setCloudStatus('☁️ Récupération…');
   db.collection('hellofresh_users').doc(code).get().then(snap=>{
     if(snap.exists){
       const d=snap.data();
+      if(!force&&(d.updatedAt||0)<=localUpdatedAt){
+        if(cb)cb(true);
+        return;
+      }
       recettes=d.recettes||recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
-      localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player}));
+      localUpdatedAt=d.updatedAt||Date.now();
+      localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
     }
     if(cb)cb(snap.exists);
   }).catch(()=>{setCloudStatus('⚠️ Pas de connexion');if(cb)cb(false);});
@@ -530,7 +536,7 @@ function syncNow(){
       if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
       setCloudStatus('✅ Synchronisé !');
     } else setCloudStatus('☁️ Aucune donnée enregistrée encore pour ce code.');
-  });
+  },{force:true});
 }
 
 function restoreFromCode(){
@@ -544,7 +550,7 @@ function restoreFromCode(){
       document.getElementById('cloud-code-display').value=syncCode;
       setCloudStatus('✅ Données récupérées !');
     } else setCloudStatus('❌ Aucune donnée pour ce code.');
-  });
+  },{force:true});
 }
 const RAYONS=['légumes','fruits','viandes','poissons','frais','épicerie','surgelés','autres'];
 const RAYON_ICONS={'légumes':'🥦','fruits':'🍎','viandes':'🥩','poissons':'🐟','frais':'🥛','épicerie':'🛒','surgelés':'❄️','autres':'📦'};
@@ -559,6 +565,7 @@ let cuisineSteps=[],cuisineIdx=0,cuisineRecetteId=null;
 let player={xp:0,level:1};
 const MAX_LEVEL=100;
 const XP_PAR_DIFF={easy:20,medium:35,hard:50};
+let localUpdatedAt=0;
 
 /* ---- STORAGE ---- */
 function load(){
@@ -570,12 +577,19 @@ function load(){
     manualItems=d.manualItems||[];
     frigo=d.frigo||[];
     player=d.player||{xp:0,level:1};
-  }catch(e){recettes=defs();coursesDone={};persons=2;manualItems=[];frigo=[];player={xp:0,level:1};}
+    localUpdatedAt=d.updatedAt||0;
+  }catch(e){recettes=defs();coursesDone={};persons=2;manualItems=[];frigo=[];player={xp:0,level:1};localUpdatedAt=0;}
 }
 function save(){
-  try{localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player}));}
-  catch(e){alert('Erreur de sauvegarde. Pense à exporter tes données !');}
+  localUpdatedAt=Date.now();
+  try{localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));}
+  catch(e){
+    console.error('Erreur stockage',e);
+    alert('⚠️ Stockage local saturé (souvent à cause d\'anciennes photos trop lourdes).\nOuvrez ☁️ → "🛠 Optimiser les photos" puis réessayez.');
+    return false;
+  }
   pushCloud();
+  return true;
 }
 function exportData(){
   const data=JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player},null,2);
@@ -646,13 +660,8 @@ async function optimizeAllPhotos(){
     try{r.img=await compressDataUrl(r.img,700,0.65);}
     catch(e){console.error('Optimisation échouée pour',r.nom,e);}
   }
-  try{
-    localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player}));
-    pushCloud();
-    setCloudStatus(`✅ ${withImg.length} photo(s) optimisée(s) !`);
-  }catch(e){
-    setCloudStatus('⚠️ Stockage encore saturé après optimisation.');
-  }
+  const ok=save();
+  setCloudStatus(ok?`✅ ${withImg.length} photo(s) optimisée(s) !`:'⚠️ Stockage encore saturé après optimisation.');
   renderRecettes();
 }
 
@@ -1384,15 +1393,7 @@ function saveRecette(){
     alert('❌ Erreur lors de la création de la recette :\n'+(e&&e.message?e.message:e));
     return;
   }
-  let saveOk=true;
-  try{
-    localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player}));
-  }catch(e){
-    saveOk=false;
-    console.error('Erreur stockage',e);
-    alert('⚠️ "'+nom+'" est créée mais le stockage local est saturé (souvent à cause d\'anciennes photos trop lourdes).\nUtilisez le bouton ☁️ → "🛠 Optimiser les photos" puis réessayez d\'enregistrer.');
-  }
-  if(saveOk)pushCloud();
+  save();
   closeModal();
   renderRecettes();
 }
