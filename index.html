@@ -494,27 +494,45 @@ function pushCloud(){
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer=setTimeout(()=>{
     setCloudStatus('☁️ Synchronisation…');
-    db.collection('hellofresh_users').doc(syncCode).set({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt})
-      .then(()=>setCloudStatus('✅ Synchronisé'))
-      .catch(()=>setCloudStatus('⚠️ Erreur de synchronisation'));
+    doPushCloud().then(()=>setCloudStatus('✅ Synchronisé')).catch(()=>setCloudStatus('⚠️ Erreur de synchronisation'));
   },1000);
 }
-function pullCloud(code,cb,opts){
+async function doPushCloud(){
+  const userRef=db.collection('hellofresh_users').doc(syncCode);
+  await userRef.set({coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt});
+  const recCol=userRef.collection('recettes');
+  const snap=await recCol.get();
+  const existingIds=new Set(snap.docs.map(d=>d.id));
+  const localIds=new Set(recettes.map(r=>String(r.id)));
+  const batch=db.batch();
+  recettes.forEach(r=>batch.set(recCol.doc(String(r.id)),r));
+  existingIds.forEach(id=>{if(!localIds.has(id))batch.delete(recCol.doc(id));});
+  await batch.commit();
+}
+async function pullCloud(code,cb,opts){
   const force=opts&&opts.force;
   setCloudStatus('☁️ Récupération…');
-  db.collection('hellofresh_users').doc(code).get().then(snap=>{
-    if(snap.exists){
-      const d=snap.data();
-      if(!force&&(d.updatedAt||0)<=localUpdatedAt){
-        if(cb)cb(true);
-        return;
-      }
-      recettes=d.recettes||recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
-      localUpdatedAt=d.updatedAt||Date.now();
-      localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
+  try{
+    const userRef=db.collection('hellofresh_users').doc(code);
+    const mainSnap=await userRef.get();
+    if(!mainSnap.exists){if(cb)cb(false);return;}
+    const d=mainSnap.data();
+    if(!force&&(d.updatedAt||0)<=localUpdatedAt){if(cb)cb(true);return;}
+    const recSnap=await userRef.collection('recettes').get();
+    if(!recSnap.empty){
+      recettes=recSnap.docs.map(doc=>doc.data());
+    } else if(Array.isArray(d.recettes)&&d.recettes.length){
+      recettes=d.recettes;
     }
-    if(cb)cb(snap.exists);
-  }).catch(()=>{setCloudStatus('⚠️ Pas de connexion');if(cb)cb(false);});
+    coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
+    localUpdatedAt=d.updatedAt||Date.now();
+    localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
+    if(cb)cb(true);
+  }catch(e){
+    console.error(e);
+    setCloudStatus('⚠️ Pas de connexion');
+    if(cb)cb(false);
+  }
 }
 
 function openCloudModal(){
@@ -531,8 +549,7 @@ function copyCloudCode(){
 function flushPushNow(){
   clearTimeout(cloudSaveTimer);
   setCloudStatus('☁️ Envoi en cours…');
-  return db.collection('hellofresh_users').doc(syncCode).set({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt})
-    .catch(()=>{});
+  return doPushCloud().catch(e=>console.error(e));
 }
 function syncNow(){
   flushPushNow().then(()=>{
