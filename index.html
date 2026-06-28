@@ -849,9 +849,29 @@ function renderRecettes(){
 function confirmDel(id){if(confirm('Supprimer cette recette ?'))delRecette(id);}
 function toggleSel(id){const r=recettes.find(x=>x.id===id);if(r){r.selected=!r.selected;save();renderRecettes();}}
 function delRecette(id){recettes=recettes.filter(x=>x.id!==id);save();renderRecettes();}
+function categoryOf(r){
+  const t=r.tags||[];
+  if(t.includes('vegan')||t.includes('veggie'))return 'veggie';
+  if(t.includes('poisson'))return 'poisson';
+  return 'viande';
+}
+function shuffle(arr){return arr.sort(()=>Math.random()-0.5);}
 function tirage(){
   recettes.forEach(r=>r.selected=false);
-  [...recettes].sort(()=>Math.random()-0.5).slice(0,5).forEach(r=>{const o=recettes.find(x=>x.id===r.id);if(o)o.selected=true;});
+  const groups={viande:[],poisson:[],veggie:[]};
+  recettes.forEach(r=>groups[categoryOf(r)].push(r));
+  Object.values(groups).forEach(shuffle);
+  let catOrder=shuffle(Object.keys(groups).filter(k=>groups[k].length));
+  const picks=[];
+  while(picks.length<5&&catOrder.length){
+    for(const cat of [...catOrder]){
+      if(picks.length>=5)break;
+      const g=groups[cat];
+      if(g.length)picks.push(g.shift());
+      if(!g.length)catOrder=catOrder.filter(c=>c!==cat);
+    }
+  }
+  picks.forEach(r=>{const o=recettes.find(x=>x.id===r.id);if(o)o.selected=true;});
   save();renderRecettes();
 }
 
