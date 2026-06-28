@@ -230,17 +230,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 #cuisine-timer-wrap{margin-top:6px}
 
 /* MINUTEUR FLOTTANT */
-.floating-timer{position:fixed;top:calc(10px + var(--safe-top));left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:9px 10px 9px 16px;border-radius:24px;display:none;align-items:center;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.35);font-weight:700;font-size:15px;letter-spacing:0.5px}
-.floating-timer button{background:rgba(255,255,255,0.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.floating-timer{position:fixed;top:calc(10px + var(--safe-top));left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:6px;z-index:9999}
+.floating-timer-pill{background:#1a1a1a;color:#fff;padding:8px 10px 8px 14px;border-radius:22px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,0.3);white-space:nowrap}
+.floating-timer-pill button{background:rgba(255,255,255,0.15);border:none;color:#fff;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
-  <div class="floating-timer" id="floating-timer">
-    <span id="floating-timer-text">⏱ 0:00</span>
-    <button onclick="cancelFloatingTimer()">✕</button>
-  </div>
+  <div class="floating-timer" id="floating-timer"></div>
 
   <div class="header">
     <div class="hlogo">
@@ -1153,11 +1151,10 @@ function closeCuisine(){
   document.getElementById('cuisine-modal').classList.remove('open');
 }
 
-/* ---- MINUTEUR FLOTTANT ---- */
-let activeTimer=null;
+/* ---- MINUTEURS FLOTTANTS (multiples) ---- */
+let timers=[];
 function renderCuisineTimerControl(){
   const wrap=document.getElementById('cuisine-timer-wrap');
-  if(activeTimer){wrap.innerHTML=`<div style="text-align:center;font-size:12px;color:#888;padding:6px">⏱ Minuteur en cours — visible en haut de l'écran</div>`;return;}
   const text=cuisineSteps[cuisineIdx]||'';
   const m=text.match(/(\d+)\s*(?:min|minute)/i);
   if(!m){wrap.innerHTML='';return;}
@@ -1165,36 +1162,45 @@ function renderCuisineTimerControl(){
   wrap.innerHTML=`<button class="btn btn-hfl" style="width:100%;justify-content:center;padding:10px" onclick="startStepTimer(${mins})">⏱ Lancer le minuteur (${mins} min)</button>`;
 }
 function startStepTimer(mins){
-  if(activeTimer){
-    if(!confirm('Un minuteur est déjà en cours. Le remplacer ?'))return;
-    clearInterval(activeTimer.interval);
+  const r=recettes.find(x=>x.id===cuisineRecetteId);
+  const label=(r?r.nom+' · ':'')+'Étape '+(cuisineIdx+1);
+  const id=Date.now()+Math.random();
+  const t={id,remaining:mins*60,label,done:false};
+  t.interval=setInterval(()=>tickTimer(id),1000);
+  timers.push(t);
+  renderFloatingTimers();
+}
+function tickTimer(id){
+  const t=timers.find(x=>x.id===id);if(!t)return;
+  t.remaining--;
+  if(t.remaining<=0){
+    clearInterval(t.interval);
+    t.remaining=0;t.done=true;
+    if(navigator.vibrate)navigator.vibrate([200,100,200,100,200]);
+    playTimerBeep();
+    renderFloatingTimers();
+    setTimeout(()=>removeTimer(id),6000);
+    return;
   }
-  activeTimer={remaining:mins*60};
-  document.getElementById('floating-timer').style.display='flex';
-  updateFloatingTimerDisplay();
-  activeTimer.interval=setInterval(()=>{
-    activeTimer.remaining--;
-    if(activeTimer.remaining<=0){
-      clearInterval(activeTimer.interval);
-      document.getElementById('floating-timer-text').textContent='⏰ Terminé !';
-      if(navigator.vibrate)navigator.vibrate([200,100,200,100,200]);
-      playTimerBeep();
-      setTimeout(cancelFloatingTimer,5000);
-      return;
-    }
-    updateFloatingTimerDisplay();
-  },1000);
-  renderCuisineTimerControl();
+  renderFloatingTimers();
 }
-function updateFloatingTimerDisplay(){
-  const mm=Math.floor(activeTimer.remaining/60),ss=activeTimer.remaining%60;
-  document.getElementById('floating-timer-text').textContent=`⏱ ${mm}:${ss.toString().padStart(2,'0')}`;
+function removeTimer(id){
+  const t=timers.find(x=>x.id===id);
+  if(t)clearInterval(t.interval);
+  timers=timers.filter(x=>x.id!==id);
+  renderFloatingTimers();
 }
-function cancelFloatingTimer(){
-  if(activeTimer)clearInterval(activeTimer.interval);
-  activeTimer=null;
-  document.getElementById('floating-timer').style.display='none';
-  renderCuisineTimerControl();
+function renderFloatingTimers(){
+  const wrap=document.getElementById('floating-timer');
+  if(!timers.length){wrap.style.display='none';wrap.innerHTML='';return;}
+  wrap.style.display='flex';
+  wrap.innerHTML=timers.map(t=>{
+    const mm=Math.floor(t.remaining/60),ss=t.remaining%60;
+    return`<div class="floating-timer-pill">
+      <span>${t.done?'⏰':'⏱'} ${t.label} · ${mm}:${ss.toString().padStart(2,'0')}</span>
+      <button onclick="removeTimer(${t.id})">✕</button>
+    </div>`;
+  }).join('');
 }
 function playTimerBeep(){
   try{
