@@ -228,11 +228,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 /* MINUTEUR */
 #cuisine-timer-wrap{margin-top:6px}
-.timer-display{text-align:center;font-size:34px;font-weight:700;color:var(--hfd);margin-top:10px;letter-spacing:1px}
+
+/* MINUTEUR FLOTTANT */
+.floating-timer{position:fixed;top:calc(10px + var(--safe-top));left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:9px 10px 9px 16px;border-radius:24px;display:none;align-items:center;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.35);font-weight:700;font-size:15px;letter-spacing:0.5px}
+.floating-timer button{background:rgba(255,255,255,0.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
 <div class="app" id="app">
+
+  <div class="floating-timer" id="floating-timer">
+    <span id="floating-timer-text">⏱ 0:00</span>
+    <button onclick="cancelFloatingTimer()">✕</button>
+  </div>
 
   <div class="header">
     <div class="hlogo">
@@ -1142,44 +1150,51 @@ function cuisineNav(d){
   updateCuisineStep();
 }
 function closeCuisine(){
-  clearInterval(stepTimerInterval);
   document.getElementById('cuisine-modal').classList.remove('open');
 }
 
-/* ---- MINUTEUR ---- */
-let stepTimerInterval=null;
+/* ---- MINUTEUR FLOTTANT ---- */
+let activeTimer=null;
 function renderCuisineTimerControl(){
-  clearInterval(stepTimerInterval);
   const wrap=document.getElementById('cuisine-timer-wrap');
+  if(activeTimer){wrap.innerHTML=`<div style="text-align:center;font-size:12px;color:#888;padding:6px">⏱ Minuteur en cours — visible en haut de l'écran</div>`;return;}
   const text=cuisineSteps[cuisineIdx]||'';
   const m=text.match(/(\d+)\s*(?:min|minute)/i);
   if(!m){wrap.innerHTML='';return;}
   const mins=parseInt(m[1]);
-  wrap.innerHTML=`<button class="btn btn-hfl" style="width:100%;justify-content:center;padding:10px" onclick="startStepTimer(${mins})">⏱ Lancer le minuteur (${mins} min)</button><div class="timer-display" id="timer-display"></div>`;
+  wrap.innerHTML=`<button class="btn btn-hfl" style="width:100%;justify-content:center;padding:10px" onclick="startStepTimer(${mins})">⏱ Lancer le minuteur (${mins} min)</button>`;
 }
 function startStepTimer(mins){
-  clearInterval(stepTimerInterval);
-  let remaining=mins*60;
-  const wrap=document.getElementById('cuisine-timer-wrap');
-  const btn=wrap.querySelector('button');
-  if(btn)btn.style.display='none';
-  const disp=document.getElementById('timer-display');
-  const render=()=>{
-    const mm=Math.floor(remaining/60),ss=remaining%60;
-    disp.textContent=`${mm}:${ss.toString().padStart(2,'0')}`;
-  };
-  render();
-  stepTimerInterval=setInterval(()=>{
-    remaining--;
-    if(remaining<=0){
-      clearInterval(stepTimerInterval);
-      disp.textContent='⏰ Terminé !';
+  if(activeTimer){
+    if(!confirm('Un minuteur est déjà en cours. Le remplacer ?'))return;
+    clearInterval(activeTimer.interval);
+  }
+  activeTimer={remaining:mins*60};
+  document.getElementById('floating-timer').style.display='flex';
+  updateFloatingTimerDisplay();
+  activeTimer.interval=setInterval(()=>{
+    activeTimer.remaining--;
+    if(activeTimer.remaining<=0){
+      clearInterval(activeTimer.interval);
+      document.getElementById('floating-timer-text').textContent='⏰ Terminé !';
       if(navigator.vibrate)navigator.vibrate([200,100,200,100,200]);
       playTimerBeep();
+      setTimeout(cancelFloatingTimer,5000);
       return;
     }
-    render();
+    updateFloatingTimerDisplay();
   },1000);
+  renderCuisineTimerControl();
+}
+function updateFloatingTimerDisplay(){
+  const mm=Math.floor(activeTimer.remaining/60),ss=activeTimer.remaining%60;
+  document.getElementById('floating-timer-text').textContent=`⏱ ${mm}:${ss.toString().padStart(2,'0')}`;
+}
+function cancelFloatingTimer(){
+  if(activeTimer)clearInterval(activeTimer.interval);
+  activeTimer=null;
+  document.getElementById('floating-timer').style.display='none';
+  renderCuisineTimerControl();
 }
 function playTimerBeep(){
   try{
