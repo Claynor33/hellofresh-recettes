@@ -236,7 +236,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 /* MINUTEUR FLOTTANT */
 .floating-timer{position:fixed;top:calc(10px + var(--safe-top));left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:6px;z-index:9999;width:calc(100% - 24px);max-width:360px}
 .floating-timer-pill{background:#1a1a1a;color:#fff;padding:8px 10px 8px 14px;border-radius:22px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,0.3);width:100%;box-sizing:border-box}
-.floating-timer-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.floating-timer-pill .floating-timer-time{flex-shrink:0;white-space:nowrap}
+.floating-timer-pill .floating-timer-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;font-weight:500;opacity:0.85}
 .floating-timer-pill button{background:rgba(255,255,255,0.15);border:none;color:#fff;width:24px;height:24px;border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 </style>
 </head>
@@ -1267,7 +1268,8 @@ function renderFloatingTimers(){
     const remaining=Math.max(0,Math.round((t.endTime-Date.now())/1000));
     const mm=Math.floor(remaining/60),ss=remaining%60;
     return`<div class="floating-timer-pill">
-      <span>${t.done?'⏰':'⏱'} ${t.label} · ${mm}:${ss.toString().padStart(2,'0')}</span>
+      <span class="floating-timer-time">${t.done?'⏰':'⏱'} ${mm}:${ss.toString().padStart(2,'0')}</span>
+      <span class="floating-timer-label">${t.label}</span>
       <button onclick="removeTimer(${t.id})">✕</button>
     </div>`;
   }).join('');
