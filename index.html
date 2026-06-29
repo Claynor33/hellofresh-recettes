@@ -111,6 +111,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .sug-box{display:none;position:absolute;background:#fff;border:1px solid #ddd;border-radius:10px;z-index:200;max-height:120px;overflow-y:auto;width:100%;top:calc(100% + 2px);left:0;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
 .sug-item{padding:8px 11px;font-size:14px;cursor:pointer;border-bottom:1px solid #f0f0f0}
 .sug-item:active{background:var(--hfl)}
+.sug-item.sug-active{background:var(--hfl)}
 .stars{display:flex;gap:3px}
 .star{font-size:22px;cursor:pointer;color:#ddd;line-height:1}
 .star.on{color:#EF9F27}
@@ -1358,7 +1359,7 @@ function addIngrRow(qte='',unit='',nom='',rayon='autres'){
     <input type="text" placeholder="Unité" value="${unit}" style="flex:0 0 48px;border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 7px;font-size:16px;font-family:inherit">
     <div class="ingr-nom-wrap">
       <input type="text" placeholder="Ingrédient" value="${nom}" id="${uid}" autocomplete="off" autocorrect="off"
-        oninput="showSug('${uid}',this.value)" onblur="setTimeout(()=>hideSug('${uid}'),200)"
+        oninput="showSug('${uid}',this.value)" onblur="setTimeout(()=>hideSug('${uid}'),200)" onkeydown="handleSugKeydown(event,'${uid}')"
         style="border-radius:9px;border:1px solid #ddd;background:#f9f9f9;padding:9px 9px;font-size:16px;font-family:inherit">
       <div class="sug-box" id="s_${uid}"></div>
     </div>
@@ -1369,13 +1370,47 @@ function addIngrRow(qte='',unit='',nom='',rayon='autres'){
   document.getElementById('ingr-rows').appendChild(div);
 }
 
+let sugMatches={},sugIndex={};
 function showSug(uid,val){
   const box=document.getElementById('s_'+uid);
-  if(!val||val.length<1){box.style.display='none';return;}
+  if(!val||val.length<1){box.style.display='none';sugMatches[uid]=[];return;}
   const matches=getAllIngrs().filter(n=>n.nom.toLowerCase().includes(val.toLowerCase())&&n.nom.toLowerCase()!==val.toLowerCase());
+  sugMatches[uid]=matches.slice(0,5);
+  sugIndex[uid]=-1;
   if(!matches.length){box.style.display='none';return;}
-  box.innerHTML=matches.slice(0,5).map(n=>`<div class="sug-item" onmousedown="pickSug('${uid}','${n.nom.replace(/'/g,"\\'")}','${n.rayon}')">${n.nom}</div>`).join('');
+  renderSugBox(uid);
   box.style.display='block';
+}
+function renderSugBox(uid){
+  const box=document.getElementById('s_'+uid);
+  const list=sugMatches[uid]||[];
+  const idx=sugIndex[uid];
+  box.innerHTML=list.map((n,i)=>`<div class="sug-item ${i===idx?'sug-active':''}" onmousedown="pickSug('${uid}','${n.nom.replace(/'/g,"\\'")}','${n.rayon}')">${n.nom}</div>`).join('');
+}
+function handleSugKeydown(e,uid){
+  const box=document.getElementById('s_'+uid);
+  if(!box||box.style.display==='none')return;
+  const list=sugMatches[uid]||[];
+  if(!list.length)return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    sugIndex[uid]=Math.min(list.length-1,(sugIndex[uid]==null?-1:sugIndex[uid])+1);
+    renderSugBox(uid);scrollSugIntoView(uid);
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    sugIndex[uid]=Math.max(0,(sugIndex[uid]==null?0:sugIndex[uid])-1);
+    renderSugBox(uid);scrollSugIntoView(uid);
+  } else if(e.key==='Enter'){
+    const idx=sugIndex[uid];
+    if(idx!=null&&idx>=0&&list[idx]){e.preventDefault();pickSug(uid,list[idx].nom,list[idx].rayon);}
+  } else if(e.key==='Escape'){
+    hideSug(uid);
+  }
+}
+function scrollSugIntoView(uid){
+  const box=document.getElementById('s_'+uid);
+  const active=box.querySelector('.sug-active');
+  if(active)active.scrollIntoView({block:'nearest'});
 }
 function pickSug(uid,nom,rayon){
   const i=document.getElementById(uid);if(i)i.value=nom;
