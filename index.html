@@ -189,17 +189,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .suggest-pct-partial{color:#e6a800}
 
 /* CUISINE MODE */
-.cuisine-modal{position:fixed;inset:0;background:#fff;z-index:200;display:none;flex-direction:column;padding:calc(16px + var(--safe-top)) 20px calc(20px + var(--safe-bot));overflow:hidden}
+.cuisine-modal{position:fixed;inset:0;background:#fff;z-index:200;display:none;flex-direction:column;padding:calc(16px + var(--safe-top)) 20px calc(20px + var(--safe-bot))}
 .cuisine-modal.open{display:flex}
-.cuisine-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(3px) brightness(0.45);transform:scale(1.08);z-index:0}
-.cuisine-content{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;min-height:0}
 .cuisine-step-text{font-size:22px;line-height:1.6;flex:1;display:flex;align-items:center;padding:24px 0;color:#1a1a1a}
-.cuisine-modal.has-bg .cuisine-step-text{color:#fff;text-shadow:0 1px 6px rgba(0,0,0,0.5)}
-.cuisine-modal.has-bg #cuisine-title{color:#eee!important;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
-.cuisine-modal.has-bg .detail-back{color:#fff!important;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
-.cuisine-modal.has-bg #cuisine-counter{color:#eee!important;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
 .cuisine-nav{display:flex;gap:12px;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid #eee}
-.cuisine-modal.has-bg .cuisine-nav{border-top-color:rgba(255,255,255,0.25)}
 
 /* INSTALL BANNER */
 .install-banner{background:#fff;border:1px solid var(--hfb);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start}
@@ -461,17 +454,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
   <!-- MODE CUISINE -->
   <div class="cuisine-modal" id="cuisine-modal">
-    <div class="cuisine-bg" id="cuisine-bg"></div>
-    <div class="cuisine-content">
-      <button class="detail-back" onclick="closeCuisine()" style="margin-bottom:10px;color:#888">✕ Fermer le mode cuisine</button>
-      <div style="font-size:14px;color:#888;margin-bottom:8px;font-weight:500" id="cuisine-title"></div>
-      <div class="cuisine-step-text" id="cuisine-step"></div>
-      <div id="cuisine-timer-wrap"></div>
-      <div class="cuisine-nav">
-        <button class="btn btn-hfl" style="padding:12px 18px" onclick="cuisineNav(-1)">◀ Précédente</button>
-        <span style="font-size:13px;color:#888;font-weight:500" id="cuisine-counter"></span>
-        <button class="btn btn-hf" style="padding:12px 18px" id="cuisine-next-btn" onclick="cuisineNav(1)">Suivante ▶</button>
-      </div>
+    <button class="detail-back" onclick="closeCuisine()" style="margin-bottom:10px;color:#888">✕ Fermer le mode cuisine</button>
+    <div style="font-size:14px;color:#888;margin-bottom:8px;font-weight:500" id="cuisine-title"></div>
+    <div class="cuisine-step-text" id="cuisine-step"></div>
+    <div id="cuisine-timer-wrap"></div>
+    <div class="cuisine-nav">
+      <button class="btn btn-hfl" style="padding:12px 18px" onclick="cuisineNav(-1)">◀ Précédente</button>
+      <span style="font-size:13px;color:#888;font-weight:500" id="cuisine-counter"></span>
+      <button class="btn btn-hf" style="padding:12px 18px" id="cuisine-next-btn" onclick="cuisineNav(1)">Suivante ▶</button>
     </div>
   </div>
 
@@ -1201,12 +1191,8 @@ function startCuisine(id){
   if(!r||!r.etapes||!r.etapes.length){alert('Aucune étape de préparation dans cette recette.');return;}
   cuisineSteps=r.etapes;cuisineIdx=0;cuisineRecetteId=id;
   document.getElementById('cuisine-title').textContent=r.nom;
-  const modal=document.getElementById('cuisine-modal');
-  const bg=document.getElementById('cuisine-bg');
-  if(r.img){bg.style.backgroundImage=`url("${r.img}")`;modal.classList.add('has-bg');}
-  else{bg.style.backgroundImage='';modal.classList.remove('has-bg');}
   updateCuisineStep();
-  modal.classList.add('open');
+  document.getElementById('cuisine-modal').classList.add('open');
 }
 function updateCuisineStep(){
   document.getElementById('cuisine-step').textContent=cuisineSteps[cuisineIdx];
