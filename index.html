@@ -301,8 +301,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
           <h2>Mes recettes</h2>
           <div id="sel-count" style="font-size:12px;color:#888;margin-top:1px">0 sélectionnée(s)</div>
         </div>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-hfl btn-sm" onclick="tirage()">🎲 5 au hasard</button>
+          <button class="btn btn-hfl btn-sm" onclick="openImportModal()">🔗 Importer</button>
           <button class="btn btn-hf btn-sm" onclick="openAddModal()">＋ Ajouter</button>
         </div>
       </div>
@@ -482,6 +483,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     </div>
   </div>
 
+  <!-- MODAL IMPORT -->
+  <div class="modal-wrap" id="modal-import">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>🔗 Importer depuis HelloFresh</h3>
+      <p style="font-size:13px;color:#666;margin-bottom:14px;line-height:1.55">Collez le lien d'une page recette HelloFresh (hellofresh.fr/recipes/...). Le formulaire sera pré-rempli automatiquement — pensez à vérifier les informations avant d'enregistrer.</p>
+      <div class="field"><label>Lien de la recette</label><input type="text" id="import-url-input" placeholder="https://www.hellofresh.fr/recipes/..." autocapitalize="none" autocorrect="off"></div>
+      <button class="btn btn-hf" style="width:100%;padding:12px;justify-content:center" onclick="importHelloFresh()">⬇️ Importer</button>
+      <div id="import-status" style="font-size:12px;color:#888;margin-top:12px;text-align:center;white-space:pre-line"></div>
+      <button class="btn" style="width:100%;margin-top:12px;justify-content:center" onclick="closeImportModal()">Fermer</button>
+    </div>
+  </div>
+
   <!-- MODAL SUCCES -->
   <div class="modal-wrap" id="modal-achievements">
     <div class="modal">
@@ -519,7 +533,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='4.1';
+const APP_VERSION='5.0';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1623,6 +1637,163 @@ function toggleTag(el){
 function setStar(v){
   starVal=v;
   document.querySelectorAll('#f-stars .star').forEach(s=>s.classList.toggle('on',parseInt(s.dataset.v)<=v));
+}
+
+/* ---- IMPORT HELLOFRESH ---- */
+const HF_FRACTIONS={'½':0.5,'¼':0.25,'¾':0.75,'⅓':0.333,'⅔':0.667,'⅛':0.125,'⅜':0.375,'⅝':0.625,'⅞':0.875};
+function setImportStatus(txt){const el=document.getElementById('import-status');if(el)el.textContent=txt;}
+function openImportModal(){
+  document.getElementById('import-url-input').value='';
+  setImportStatus('');
+  document.getElementById('modal-import').classList.add('open');
+}
+function closeImportModal(){document.getElementById('modal-import').classList.remove('open');}
+function parseHfQty(text){
+  text=(text||'').trim();
+  let qty=null,rest=text;
+  const fracMatch=text.match(/^([½¼¾⅓⅔⅛⅜⅝⅞])\s*(.*)$/);
+  if(fracMatch){qty=HF_FRACTIONS[fracMatch[1]];rest=fracMatch[2];}
+  else{
+    const numMatch=text.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
+    if(numMatch){qty=parseFloat(numMatch[1].replace(',','.'));rest=numMatch[2];}
+  }
+  if(qty===null)return{qte:0,unit:text};
+  const unit=rest.replace(/\(s\)/g,'').trim();
+  return{qte:qty,unit};
+}
+function guessRayonFromName(nom){
+  const n=nom.toLowerCase();
+  const known=getAllIngrs().find(x=>x.nom.toLowerCase()===n||n.includes(x.nom.toLowerCase())||x.nom.toLowerCase().includes(n));
+  if(known)return known.rayon;
+  if(/poulet|dinde|volaille|bœuf|boeuf|porc|agneau|veau|steak|viande|lardons|jambon|chorizo|saucisse/.test(n))return'viandes';
+  if(/saumon|poisson|cabillaud|crevette|thon|truite|merlu|colin/.test(n))return'poissons';
+  if(/fromage|chèvre|chevre|lait|crème|creme|yaourt|beurre|œuf|oeuf|mozzarella|parmesan|ricotta/.test(n))return'frais';
+  if(/pomme|banane|citron|orange|fraise|poire|raisin|pêche|peche|abricot|mangue|kiwi/.test(n))return'fruits';
+  if(/tomate|courgette|oignon|ail|carotte|poivron|salade|concombre|menthe|persil|basilic|épinard|epinard|champignon|brocoli|chou|aubergine|patate|pomme de terre|échalote|echalote|gingembre|coriandre/.test(n))return'légumes';
+  if(/surgelé|surgele|glace/.test(n))return'surgelés';
+  return'épicerie';
+}
+function inferHfTags(ingrNames,badgeWords){
+  const tags=new Set();
+  const text=(badgeWords||[]).join(' ').toLowerCase();
+  if(/végétarien|vegetarien/.test(text))tags.add('veggie');
+  if(/végan|vegan/.test(text))tags.add('vegan');
+  if(/rapide/.test(text))tags.add('rapide');
+  const allNames=ingrNames.join(' ').toLowerCase();
+  if(/saumon|poisson|cabillaud|crevette|thon|truite/.test(allNames))tags.add('poisson');
+  if(/poulet|dinde|volaille/.test(allNames))tags.add('volaille');
+  if(/bœuf|boeuf|porc|agneau|veau|steak|viande hachée|viande hachee/.test(allNames))tags.add('rouge');
+  return[...tags];
+}
+function parseHelloFreshMarkdown(md){
+  const titleMatch=md.match(/^# ([^\n#].*)$/m);
+  const nom=titleMatch?titleMatch[1].trim():'';
+  let img=null;
+  if(titleMatch){
+    const beforeTitle=md.slice(0,titleMatch.index);
+    const imgMatches=[...beforeTitle.matchAll(/!\[Image \d+:[^\]]*\]\((https:\/\/media\.hellofresh\.com\/[^)]+)\)/g)];
+    if(imgMatches.length)img=imgMatches[imgMatches.length-1][1];
+  }
+  const timeMatch=md.match(/Temps total[\s\S]{0,40}?(\d+)\s*minutes/);
+  const time=timeMatch?parseInt(timeMatch[1]):30;
+  const diffMatch=md.match(/Difficulty[\s\S]{0,20}?:\s*\n+\s*(Facile|Moyen|Difficile)/);
+  const diffMap={'Facile':'easy','Moyen':'medium','Difficile':'hard'};
+  const diff=diffMatch?(diffMap[diffMatch[1]]||'easy'):'easy';
+  let badgeWords=[];
+  if(diffMatch){
+    const afterDiff=md.slice(diffMatch.index+diffMatch[0].length);
+    const allergIdx=afterDiff.indexOf('Allergènes');
+    const chunk=allergIdx>=0?afterDiff.slice(0,allergIdx):afterDiff.slice(0,200);
+    badgeWords=chunk.split('\n').map(s=>s.trim()).filter(Boolean);
+  }
+  const ingr=[];
+  const ingrSectionMatch=md.match(/## Ingrédients([\s\S]*?)## Valeurs nutritionnelles/);
+  if(ingrSectionMatch){
+    const block=ingrSectionMatch[1];
+    const re=/!\[Image \d+:[^\]]*\]\(https:\/\/media\.hellofresh\.com\/[^)]*\/ingredient\/[^)]*\)\s*\n+([^\n]+)\s*\n+([^\n]+)/g;
+    let m;
+    while((m=re.exec(block))){
+      const qtyText=m[1].trim();
+      const nomIng=m[2].trim();
+      if(!nomIng||nomIng.startsWith('(')||nomIng.startsWith('!['))continue;
+      const{qte,unit}=parseHfQty(qtyText);
+      ingr.push({qte,unit,nom:nomIng,rayon:guessRayonFromName(nomIng)});
+    }
+  }
+  const etapes=[];
+  const stepSectionMatch=md.match(/## Instructions([\s\S]*?)\n## /);
+  if(stepSectionMatch){
+    const block=stepSectionMatch[1];
+    const stepRe=/!\[Image \d+:[^\]]*\]\([^)]+\)\s*\n+\s*(\d+)\s*\n+([\s\S]*?)(?=!\[Image \d+:|$)/g;
+    let m;
+    while((m=stepRe.exec(block))){
+      const bodyLines=m[2].split('\n').map(l=>l.trim()).filter(l=>l.startsWith('*'));
+      const text=bodyLines.map(l=>l.replace(/^\*\s*/,'').replace(/\*\*/g,'')).join(' ').trim();
+      if(text)etapes.push(text);
+    }
+  }
+  const tags=inferHfTags(ingr.map(i=>i.nom),badgeWords);
+  return{nom,img,time,diff,tags,ingr,etapes};
+}
+function fetchAndCompressImage(url,maxDim,quality){
+  return fetch(url).then(r=>r.blob()).then(blob=>new Promise((resolve,reject)=>{
+    const objUrl=URL.createObjectURL(blob);
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>h&&w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;}
+      else if(h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;}
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(objUrl);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=reject;
+    img.src=objUrl;
+  }));
+}
+async function importHelloFresh(){
+  const url=document.getElementById('import-url-input').value.trim();
+  if(!url||!/hellofresh\.[a-z.]+\/recipes\//i.test(url)){alert('Merci de coller un lien de recette HelloFresh valide (hellofresh.fr/recipes/...).');return;}
+  setImportStatus('⏳ Récupération de la page…');
+  try{
+    const res=await fetch('https://r.jina.ai/'+url);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const md=await res.text();
+    const data=parseHelloFreshMarkdown(md);
+    if(!data.nom||!data.ingr.length)throw new Error('Structure de page inattendue, analyse impossible.');
+    let imgDataUrl=null;
+    if(data.img){
+      setImportStatus('⏳ Téléchargement de la photo…');
+      try{imgDataUrl=await fetchAndCompressImage(data.img,700,0.7);}catch(e){console.error('image import',e);}
+    }
+    closeImportModal();
+    prefillAddModalFromImport(data,imgDataUrl);
+  }catch(e){
+    console.error('Import HelloFresh',e);
+    setImportStatus('❌ Échec de l\'import : '+(e&&e.message?e.message:e)+'\nVous pouvez créer la recette manuellement.');
+  }
+}
+function prefillAddModalFromImport(data,imgDataUrl){
+  editId=null;pendingImg=imgDataUrl;starVal=4;selectedTagsSet=new Set(data.tags);
+  document.getElementById('modal-title').textContent='Nouvelle recette (importée — à vérifier)';
+  document.getElementById('f-nom').value=data.nom;
+  document.getElementById('f-persons').value='2';
+  document.getElementById('f-time').value=data.time;
+  document.getElementById('f-diff').value=data.diff;
+  setStar(4);
+  const prev=document.getElementById('img-preview');
+  prev.innerHTML=pendingImg?`<img src="${pendingImg}" style="width:100%;height:90px;object-fit:cover;border-radius:10px;display:block">`:'📷 Choisir une photo';
+  document.getElementById('img-file').value='';
+  document.querySelectorAll('.tag-opt').forEach(el=>el.classList.toggle('selected',selectedTagsSet.has(el.dataset.t)));
+  document.getElementById('ingr-rows').innerHTML='';
+  if(data.ingr.length)data.ingr.forEach(i=>addIngrRow(i.qte,i.unit,i.nom,i.rayon||'autres'));
+  else{addIngrRow();addIngrRow();addIngrRow();}
+  document.getElementById('step-rows').innerHTML='';
+  if(data.etapes.length)data.etapes.forEach(e=>addStepRow(e));
+  else addStepRow();
+  document.getElementById('modal-add').classList.add('open');
 }
 
 function openAddModal(){
