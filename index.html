@@ -533,7 +533,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='5.0';
+const APP_VERSION='5.1';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -763,6 +763,22 @@ async function load(){
     const map={};photos.forEach(p=>map[p.id]=p.img);
     recettes.forEach(r=>{if(map[String(r.id)])r.img=map[String(r.id)];});
   }catch(e){console.error('Lecture photos IndexedDB échouée',e);}
+  if(migrateUniteU())save();
+}
+function migrateUniteU(){
+  let changed=false;
+  recettes.forEach(r=>{
+    (r.ingr||[]).forEach(i=>{
+      if((i.unit||'').trim().toLowerCase()==='u'){i.unit='pièce';changed=true;}
+    });
+  });
+  frigo.forEach(f=>{
+    if((f.unit||'').trim().toLowerCase()==='u'){f.unit='pièce';changed=true;}
+  });
+  manualItems.forEach(m=>{
+    if((m.unit||'').trim().toLowerCase()==='u'){m.unit='pièce';changed=true;}
+  });
+  return changed;
 }
 function persistLocal(){
   const light=recettes.map(r=>{const{img,...rest}=r;return rest;});
