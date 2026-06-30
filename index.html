@@ -506,7 +506,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='2.1';
+const APP_VERSION='2.2';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1249,7 +1249,7 @@ function renderCourses(){
             <div class="courses-nom" style="${done?'text-decoration:line-through':''}">${item.nom}</div>
             <div class="courses-qty">${t}${item.unit?' '+item.unit:''}</div>
           </div>
-          <div class="c-cb ${done?'done':''}" onclick="togC('${k}','${item.nom.replace(/'/g,"\\'")}','${item.unit}',${parseFloat(item.total.toFixed(1))})">
+          <div class="c-cb ${done?'done':''}" onclick="togC('${k}','${item.nom.replace(/'/g,"\\'")}','${item.unit}',${parseFloat(item.total.toFixed(1))},'${item.rayon||'autres'}')">
             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
         </div>`;
@@ -1260,13 +1260,13 @@ function renderCourses(){
   renderManual();
 }
 
-function togC(k,nom,unit,qty){
+function togC(k,nom,unit,qty,rayon){
   const wasDone=coursesDone[k];
   coursesDone[k]=!wasDone;
   if(!wasDone){
     const ex=frigo.find(f=>f.nom.toLowerCase()===nom.toLowerCase());
-    if(ex){ex.qty=qty;ex.unit=unit;}
-    else frigo.push({nom,unit,qty,rayon:'autres'});
+    if(ex){ex.qty=qty;ex.unit=unit;if(rayon)ex.rayon=rayon;}
+    else frigo.push({nom,unit,qty,rayon:rayon||'autres'});
   } else {
     frigo=frigo.filter(f=>f.nom.toLowerCase()!==nom.toLowerCase());
   }
