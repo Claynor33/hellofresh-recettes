@@ -518,7 +518,11 @@ async function pullCloud(code,cb,opts){
   try{
     const userRef=db.collection('hellofresh_users').doc(code);
     const mainSnap=await userRef.get();
-    if(!mainSnap.exists){if(cb)cb(false);return;}
+    if(!mainSnap.exists){
+      setCloudStatus('❌ Aucune donnée pour le code "'+code+'".');
+      if(cb)cb(false);
+      return;
+    }
     const d=mainSnap.data();
     if(!force&&(d.updatedAt||0)<=localUpdatedAt){if(cb)cb(true);return;}
     const recSnap=await userRef.collection('recettes').get();
@@ -532,9 +536,8 @@ async function pullCloud(code,cb,opts){
     localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
     if(cb)cb(true);
   }catch(e){
-    console.error(e);
-    setCloudStatus('⚠️ Pas de connexion');
-    if(cb)cb(false);
+    console.error('pullCloud error',e);
+    setCloudStatus('⚠️ Erreur : '+(e&&e.code?e.code:(e&&e.message?e.message:'connexion impossible')));
   }
 }
 
@@ -562,7 +565,7 @@ function syncNow(){
         if(document.getElementById('view-courses').classList.contains('active')){document.getElementById('p-val').textContent=persons;renderCourses();}
         if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
         setCloudStatus('✅ Synchronisé !');
-      } else setCloudStatus('☁️ Aucune donnée enregistrée encore pour ce code.');
+      }
     });
   });
 }
@@ -577,7 +580,7 @@ function restoreFromCode(){
       renderRecettes();renderLevelBar();
       document.getElementById('cloud-code-display').value=syncCode;
       setCloudStatus('✅ Données récupérées !');
-    } else setCloudStatus('❌ Aucune donnée pour le code "'+code+'".');
+    }
   },{force:true});
 }
 const RAYONS=['légumes','fruits','viandes','poissons','frais','épicerie','surgelés','autres'];
