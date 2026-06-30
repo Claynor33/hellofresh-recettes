@@ -266,6 +266,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
   #courses-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-items:start}
   .rayon-block{margin-bottom:0!important}
   .modal{max-width:480px;border-radius:20px}
+  #modal-recipe-form{max-width:760px}
 }
 </style>
 </head>
@@ -418,7 +419,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
   <!-- MODAL AJOUT/EDIT -->
   <div class="modal-wrap" id="modal-add">
-    <div class="modal">
+    <div class="modal" id="modal-recipe-form">
       <div class="modal-handle"></div>
       <h3 id="modal-title">Nouvelle recette</h3>
       <div class="field">
@@ -553,7 +554,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='7.0';
+const APP_VERSION='7.1';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
