@@ -508,7 +508,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='3.0';
+const APP_VERSION='3.1';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1043,9 +1043,24 @@ function removeFromWeek(id){
   const r=recettes.find(x=>x.id===id);if(!r)return;
   r.thisWeek=false;save();renderRecettes();
 }
+function mergeIntoFrigo(nom,unit,qty,rayon){
+  const ex=frigo.find(f=>f.nom.toLowerCase()===nom.toLowerCase());
+  if(ex){
+    const exQty=parseFloat(ex.qty)||0;
+    const addQty=parseFloat(qty)||0;
+    ex.qty=Math.round((exQty+addQty)*100)/100;
+    if(unit)ex.unit=unit;
+    if(rayon)ex.rayon=rayon;
+  } else frigo.push({nom,unit,qty,rayon:rayon||'autres'});
+}
 function finishShopping(){
   const sel=recettes.filter(r=>r.selected);
   if(!sel.length){alert('Aucune recette sélectionnée pour la semaine.');return;}
+  const byRayon=buildCoursesByRayon();
+  Object.values(byRayon).flat().forEach(item=>{
+    const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
+    if(coursesDone[k])mergeIntoFrigo(item.nom,item.unit,parseFloat(item.total.toFixed(1)),item.rayon);
+  });
   sel.forEach(r=>{r.thisWeek=true;r.selected=false;});
   coursesDone={};manualItems=[];
   save();
@@ -1259,7 +1274,7 @@ function renderCourses(){
             <div class="courses-nom" style="${done?'text-decoration:line-through':''}">${item.nom}</div>
             <div class="courses-qty">${t}${item.unit?' '+item.unit:''}</div>
           </div>
-          <div class="c-cb ${done?'done':''}" onclick="togC('${k}','${item.nom.replace(/'/g,"\\'")}','${item.unit}',${parseFloat(item.total.toFixed(1))},'${item.rayon||'autres'}')">
+          <div class="c-cb ${done?'done':''}" onclick="togC('${k}')">
             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
         </div>`;
@@ -1274,35 +1289,13 @@ function toggleAllCourses(onlyRayon){
   const items=onlyRayon?(byRayon[onlyRayon]||[]):Object.values(byRayon).flat();
   items.forEach(item=>{
     const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
-    if(coursesDone[k])return;
     coursesDone[k]=true;
-    const qty=parseFloat(item.total.toFixed(1));
-    const ex=frigo.find(f=>f.nom.toLowerCase()===item.nom.toLowerCase());
-    if(ex){
-      const exQty=parseFloat(ex.qty)||0;
-      ex.qty=Math.round((exQty+qty)*100)/100;
-      if(item.unit)ex.unit=item.unit;
-      ex.rayon=item.rayon||'autres';
-    } else frigo.push({nom:item.nom,unit:item.unit,qty,rayon:item.rayon||'autres'});
   });
   save();renderCourses();
 }
 
-function togC(k,nom,unit,qty,rayon){
-  const wasDone=coursesDone[k];
-  coursesDone[k]=!wasDone;
-  if(!wasDone){
-    const ex=frigo.find(f=>f.nom.toLowerCase()===nom.toLowerCase());
-    if(ex){
-      const exQty=parseFloat(ex.qty)||0;
-      const addQty=parseFloat(qty)||0;
-      ex.qty=Math.round((exQty+addQty)*100)/100;
-      if(unit)ex.unit=unit;
-      if(rayon)ex.rayon=rayon;
-    } else frigo.push({nom,unit,qty,rayon:rayon||'autres'});
-  } else {
-    frigo=frigo.filter(f=>f.nom.toLowerCase()!==nom.toLowerCase());
-  }
+function togC(k){
+  coursesDone[k]=!coursesDone[k];
   save();renderCourses();
 }
 
