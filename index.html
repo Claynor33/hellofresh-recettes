@@ -458,6 +458,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
       </div>
       <button class="btn btn-hf" style="width:100%;padding:12px;justify-content:center" onclick="restoreFromCode()">⬇️ Récupérer ces données</button>
       <div id="cloud-status" style="font-size:12px;color:#888;margin-top:12px;text-align:center"></div>
+      <div style="font-size:11px;color:#bbb;margin-top:14px;text-align:center">Version de l'app : v<span id="app-version"></span></div>
       <button class="btn" style="width:100%;margin-top:12px;justify-content:center" onclick="closeCloudModal()">Fermer</button>
     </div>
   </div>
@@ -498,6 +499,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 </div><!-- /app -->
 
 <script>
+/* APP_VERSION: incrémenter ce numéro à chaque mise à jour déployée */
+const APP_VERSION=1;
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -581,6 +584,7 @@ function openCloudModal(){
   document.getElementById('cloud-code-display').value=syncCode;
   document.getElementById('cloud-code-input').value='';
   document.getElementById('cloud-status').textContent=lastCloudStatus;
+  document.getElementById('app-version').textContent=APP_VERSION;
   document.getElementById('modal-cloud').classList.add('open');
 }
 function closeCloudModal(){document.getElementById('modal-cloud').classList.remove('open');}
