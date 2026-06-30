@@ -214,6 +214,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .level-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--hf);color:#fff;padding:12px 22px;border-radius:14px;font-weight:700;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;text-align:center;animation:levelToastIn .25s ease-out}
 @keyframes levelToastIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
 .xp-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:9px 18px;border-radius:20px;font-weight:600;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;animation:levelToastIn .25s ease-out}
+.level-streak{background:#fff3e0;color:#bf5b04;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0;white-space:nowrap;display:none;align-items:center}
+.badge-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#f5a623;color:#fff;padding:12px 22px;border-radius:14px;font-weight:700;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;text-align:center;animation:levelToastIn .25s ease-out}
+
+/* SUCCES */
+.ach-badge{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:11px 6px;text-align:center;opacity:0.4}
+.ach-badge.unlocked{opacity:1;border-color:var(--hfb);background:var(--hfl)}
+.ach-badge .ach-icon{font-size:24px;margin-bottom:5px}
+.ach-badge .ach-label{font-size:10px;font-weight:600;color:var(--hft);line-height:1.3}
 
 /* CLOUD SYNC */
 #cloud-code-display{font-weight:700;letter-spacing:1px;text-align:center;font-size:18px;color:var(--hft)}
@@ -260,8 +268,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     </div>
   </div>
 
-  <div class="level-bar" id="level-bar" onclick="showLevelUp(true)">
+  <div class="level-bar" id="level-bar" onclick="openAchievementsModal()">
     <div class="level-badge" id="level-badge">Niv. 1</div>
+    <div class="level-streak" id="level-streak" style="display:none">🔥 0</div>
     <div class="level-progress-wrap"><div class="level-progress" id="level-progress" style="width:0%"></div></div>
     <div class="level-xp-text" id="level-xp-text">0/100 XP</div>
   </div>
@@ -453,6 +462,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     </div>
   </div>
 
+  <!-- MODAL SUCCES -->
+  <div class="modal-wrap" id="modal-achievements">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>🏆 Succès & progression</h3>
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <div style="flex:1;background:var(--hfl);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--hft)" id="ach-streak">🔥 0</div>
+          <div style="font-size:11px;color:var(--hft);margin-top:2px">Série de cuisine</div>
+        </div>
+        <div style="flex:1;background:var(--hfl);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--hft)" id="ach-cooked">0</div>
+          <div style="font-size:11px;color:var(--hft);margin-top:2px">Recettes cuisinées</div>
+        </div>
+      </div>
+      <div id="ach-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px"></div>
+      <button class="btn" style="width:100%;margin-top:16px;justify-content:center" onclick="closeAchievementsModal()">Fermer</button>
+    </div>
+  </div>
+
   <!-- MODE CUISINE -->
   <div class="cuisine-modal" id="cuisine-modal">
     <button class="detail-back" onclick="closeCuisine()" style="margin-bottom:10px;color:#888">✕ Fermer le mode cuisine</button>
@@ -531,7 +560,7 @@ async function pullCloud(code,cb,opts){
     } else if(Array.isArray(d.recettes)&&d.recettes.length){
       recettes=d.recettes;
     }
-    coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
+    coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=normalizePlayer(d.player);
     localUpdatedAt=d.updatedAt||Date.now();
     try{
       persistLocal();
@@ -600,7 +629,46 @@ const DIFF_CLS={easy:'tag-diff-easy',medium:'tag-diff-med',hard:'tag-diff-hard'}
 let recettes=[],coursesDone={},manualItems=[],frigo=[],persons=2;
 let editId=null,pendingImg=null,filterActive='all',starVal=3,selectedTagsSet=new Set();
 let cuisineSteps=[],cuisineIdx=0,cuisineRecetteId=null;
-let player={xp:0,level:1};
+function defaultStats(){return{totalCooked:0,distinctCooked:{},categoriesCooked:{veggie:0,poisson:0,volaille:0,rouge:0,autre:0},diffCooked:{easy:0,medium:0,hard:0}};}
+function normalizePlayer(p){
+  p=p||{};
+  const ds=defaultStats();
+  return{
+    xp:p.xp||0,
+    level:p.level||1,
+    streak:p.streak||0,
+    bestStreak:p.bestStreak||0,
+    lastCookDate:p.lastCookDate||null,
+    stats:{
+      totalCooked:(p.stats&&p.stats.totalCooked)||0,
+      distinctCooked:Object.assign({},p.stats&&p.stats.distinctCooked),
+      categoriesCooked:Object.assign(ds.categoriesCooked,(p.stats&&p.stats.categoriesCooked)||{}),
+      diffCooked:Object.assign(ds.diffCooked,(p.stats&&p.stats.diffCooked)||{})
+    },
+    badges:p.badges||[]
+  };
+}
+const ACHIEVEMENTS=[
+  {id:'first_cook',icon:'🍳',label:'Premier coup de feu',desc:'Cuisinez votre 1ère recette',check:s=>s.totalCooked>=1},
+  {id:'cook_10',icon:'👨‍🍳',label:'Habitué des fourneaux',desc:'Cuisinez 10 recettes',check:s=>s.totalCooked>=10},
+  {id:'cook_25',icon:'🎖️',label:'Cuisinier assidu',desc:'Cuisinez 25 recettes',check:s=>s.totalCooked>=25},
+  {id:'cook_50',icon:'⭐',label:'Chef confirmé',desc:'Cuisinez 50 recettes',check:s=>s.totalCooked>=50},
+  {id:'cook_100',icon:'👑',label:'Maître cuisinier',desc:'Cuisinez 100 recettes',check:s=>s.totalCooked>=100},
+  {id:'variety_5',icon:'🎨',label:'Touche-à-tout',desc:'5 recettes différentes cuisinées',check:s=>Object.keys(s.distinctCooked||{}).length>=5},
+  {id:'variety_15',icon:'🧭',label:'Explorateur culinaire',desc:'15 recettes différentes cuisinées',check:s=>Object.keys(s.distinctCooked||{}).length>=15},
+  {id:'first_fish',icon:'🐟',label:'Pêcheur du jour',desc:'Cuisinez votre 1ère recette de poisson',check:s=>(s.categoriesCooked.poisson||0)>=1},
+  {id:'first_veggie',icon:'🌿',label:'Mode veggie',desc:'Cuisinez votre 1ère recette véggie/végan',check:s=>(s.categoriesCooked.veggie||0)>=1},
+  {id:'all_categories',icon:'⚖️',label:'Équilibre parfait',desc:'Au moins une recette de chaque catégorie',check:s=>(s.categoriesCooked.veggie||0)>=1&&(s.categoriesCooked.poisson||0)>=1&&(s.categoriesCooked.volaille||0)>=1&&(s.categoriesCooked.rouge||0)>=1},
+  {id:'hard_5',icon:'🌶️',label:'Défi accepté',desc:'5 recettes difficiles cuisinées',check:s=>(s.diffCooked.hard||0)>=5},
+  {id:'streak_3',icon:'🔥',label:'Sur sa lancée',desc:'3 jours de suite',check:s=>s.maxStreak>=3},
+  {id:'streak_7',icon:'🔥🔥',label:'Semaine en feu',desc:'7 jours de suite',check:s=>s.maxStreak>=7},
+  {id:'streak_30',icon:'🔥🔥🔥',label:'Inarrêtable',desc:'30 jours de suite',check:s=>s.maxStreak>=30},
+  {id:'level_10',icon:'🥉',label:'Niveau 10',desc:'Atteignez le niveau 10',check:s=>s.level>=10},
+  {id:'level_25',icon:'🥈',label:'Niveau 25',desc:'Atteignez le niveau 25',check:s=>s.level>=25},
+  {id:'level_50',icon:'🥇',label:'Niveau 50',desc:'Atteignez le niveau 50',check:s=>s.level>=50},
+  {id:'level_100',icon:'🏆',label:'Niveau MAX',desc:'Atteignez le niveau 100',check:s=>s.level>=100}
+];
+let player=normalizePlayer();
 const MAX_LEVEL=100;
 const XP_PAR_DIFF={easy:20,medium:35,hard:50};
 let localUpdatedAt=0;
@@ -650,9 +718,9 @@ async function load(){
     persons=d.persons||2;
     manualItems=d.manualItems||[];
     frigo=d.frigo||[];
-    player=d.player||{xp:0,level:1};
+    player=normalizePlayer(d.player);
     localUpdatedAt=d.updatedAt||0;
-  }catch(e){recettes=defs();coursesDone={};persons=2;manualItems=[];frigo=[];player={xp:0,level:1};localUpdatedAt=0;}
+  }catch(e){recettes=defs();coursesDone={};persons=2;manualItems=[];frigo=[];player=normalizePlayer();localUpdatedAt=0;}
   try{
     const photos=await idbGetAllPhotos();
     const map={};photos.forEach(p=>map[p.id]=p.img);
@@ -694,7 +762,7 @@ function importData(evt){
   rd.onload=e=>{
     try{
       const d=JSON.parse(e.target.result);
-      if(d.recettes){recettes=d.recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};save();renderRecettes();renderLevelBar();alert('✅ Données importées !');}
+      if(d.recettes){recettes=d.recettes;coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=normalizePlayer(d.player);save();renderRecettes();renderLevelBar();alert('✅ Données importées !');}
     }catch(e){alert('❌ Fichier invalide.');}
   };
   rd.readAsText(f);
@@ -812,8 +880,13 @@ function renderLevelBar(){
   const badge=document.getElementById('level-badge');
   const bar=document.getElementById('level-progress');
   const txt=document.getElementById('level-xp-text');
+  const streakEl=document.getElementById('level-streak');
   if(!badge)return;
   badge.textContent='Niv. '+player.level;
+  if(streakEl){
+    if(player.streak>0){streakEl.style.display='inline-flex';streakEl.textContent='🔥 '+player.streak;}
+    else streakEl.style.display='none';
+  }
   if(player.level>=MAX_LEVEL){
     bar.style.width='100%';txt.textContent='NIVEAU MAX';return;
   }
@@ -821,6 +894,66 @@ function renderLevelBar(){
   const pct=Math.max(0,Math.min(100,Math.round(player.xp/need*100)));
   bar.style.width=pct+'%';
   txt.textContent=`${player.xp}/${need} XP`;
+}
+
+/* ---- SERIE & SUCCES ---- */
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function addDaysStr(str,delta){const d=new Date(str+'T00:00:00');d.setDate(d.getDate()+delta);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function recordCookedRecipe(r){
+  const today=todayStr();
+  if(player.lastCookDate!==today){
+    const yesterday=addDaysStr(today,-1);
+    player.streak=(player.lastCookDate===yesterday)?player.streak+1:1;
+    player.lastCookDate=today;
+    player.bestStreak=Math.max(player.bestStreak,player.streak);
+  }
+  const s=player.stats;
+  s.totalCooked++;
+  s.distinctCooked[r.id]=true;
+  const cat=categoryOf(r);
+  s.categoriesCooked[cat]=(s.categoriesCooked[cat]||0)+1;
+  const diff=r.diff||'easy';
+  s.diffCooked[diff]=(s.diffCooked[diff]||0)+1;
+  const streakBonus=Math.min(player.streak,10)*3;
+  gainXp(xpForRecette(r)+streakBonus);
+  checkAchievements();
+}
+function checkAchievements(){
+  const ctx={...player.stats,level:player.level,maxStreak:player.bestStreak};
+  const newlyUnlocked=[];
+  ACHIEVEMENTS.forEach(a=>{
+    if(!player.badges.includes(a.id)&&a.check(ctx)){
+      player.badges.push(a.id);
+      newlyUnlocked.push(a);
+    }
+  });
+  if(newlyUnlocked.length){
+    save();
+    newlyUnlocked.forEach((a,i)=>setTimeout(()=>showBadgeToast(a),i*900+900));
+  }
+}
+function showBadgeToast(a){
+  const t=document.createElement('div');
+  t.className='badge-toast';
+  t.innerHTML=`🏆 Succès débloqué : ${a.icon} ${a.label}`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+function openAchievementsModal(){
+  renderAchievementsModal();
+  document.getElementById('modal-achievements').classList.add('open');
+}
+function closeAchievementsModal(){document.getElementById('modal-achievements').classList.remove('open');}
+function renderAchievementsModal(){
+  document.getElementById('ach-streak').textContent='🔥 '+player.streak+' (record : '+player.bestStreak+')';
+  document.getElementById('ach-cooked').textContent=player.stats.totalCooked;
+  document.getElementById('ach-grid').innerHTML=ACHIEVEMENTS.map(a=>{
+    const unlocked=player.badges.includes(a.id);
+    return`<div class="ach-badge ${unlocked?'unlocked':''}" title="${a.desc}">
+      <div class="ach-icon">${unlocked?a.icon:'🔒'}</div>
+      <div class="ach-label">${a.label}</div>
+    </div>`;
+  }).join('');
 }
 function showXpToast(amount){
   const t=document.createElement('div');
@@ -1263,9 +1396,9 @@ function cuisineNav(d){
   if(d===1&&cuisineIdx===cuisineSteps.length-1){
     const r=recettes.find(x=>x.id===cuisineRecetteId);
     if(r){
-      gainXp(xpForRecette(r));
       r.thisWeek=false;r.selected=false;
       r.ingr.forEach(i=>{const idx=frigo.findIndex(f=>f.nom.toLowerCase()===i.nom.toLowerCase());if(idx>=0)frigo.splice(idx,1);});
+      recordCookedRecipe(r);
       save();
     }
     closeCuisine();
