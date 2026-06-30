@@ -250,6 +250,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .floating-timer-pill .floating-timer-time{flex-shrink:0;white-space:nowrap}
 .floating-timer-pill .floating-timer-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;font-weight:500;opacity:0.85}
 .floating-timer-pill button{background:rgba(255,255,255,0.15);border:none;color:#fff;width:24px;height:24px;border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ECRANS LARGES (TABLETTE) */
+@media (min-width:700px){
+  .app{max-width:1100px}
+  #recettes-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .r-card{margin-bottom:0}
+  .weekly-section{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+  .weekly-section h3{grid-column:1/-1;margin-bottom:0}
+  .weekly-card{margin-bottom:0}
+  #frigo-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-items:start}
+  .frigo-card{margin-bottom:0}
+  #courses-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-items:start}
+  .rayon-block{margin-bottom:0!important}
+  .modal{max-width:480px;border-radius:20px}
+}
 </style>
 </head>
 <body>
@@ -533,7 +548,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='5.2';
+const APP_VERSION='6.0';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1332,7 +1347,7 @@ function renderCourses(){
   let html='';
   RAYONS.forEach(rayon=>{
     if(!byRayon[rayon])return;
-    html+=`<div style="background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden;margin-bottom:10px">
+    html+=`<div class="rayon-block" style="background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden;margin-bottom:10px">
       <div class="rayon-title">
         <span>${RAYON_ICONS[rayon]} ${rayon.charAt(0).toUpperCase()+rayon.slice(1)}</span>
         <button class="rayon-select-btn" onclick="toggleAllCourses('${rayon}')">☑️ Tout</button>
