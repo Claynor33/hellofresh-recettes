@@ -533,8 +533,15 @@ async function pullCloud(code,cb,opts){
     }
     coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
     localUpdatedAt=d.updatedAt||Date.now();
-    localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
-    if(cb)cb(true);
+    try{
+      localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
+    }catch(storageErr){
+      console.error('Quota stockage local',storageErr);
+      setCloudStatus('⚠️ Données récupérées mais stockage saturé sur cet appareil.\nOuvrez "🛠 Optimiser les photos" puis réessayez.');
+      if(cb)cb(true,false);
+      return;
+    }
+    if(cb)cb(true,true);
   }catch(e){
     console.error('pullCloud error',e);
     setCloudStatus('⚠️ Erreur : '+(e&&e.code?e.code:(e&&e.message?e.message:'connexion impossible')));
@@ -559,12 +566,12 @@ function flushPushNow(){
 }
 function syncNow(){
   flushPushNow().then(()=>{
-    pullCloud(syncCode,(existed)=>{
+    pullCloud(syncCode,(existed,persisted)=>{
       if(existed){
         renderRecettes();renderLevelBar();
         if(document.getElementById('view-courses').classList.contains('active')){document.getElementById('p-val').textContent=persons;renderCourses();}
         if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
-        setCloudStatus('✅ Synchronisé !');
+        if(persisted!==false)setCloudStatus('✅ Synchronisé !');
       }
     });
   });
@@ -574,12 +581,12 @@ function restoreFromCode(){
   const code=document.getElementById('cloud-code-input').value.trim().toUpperCase();
   if(!code)return;
   if(!confirm('Cela va remplacer vos données actuelles par celles du code '+code+'. Continuer ?'))return;
-  pullCloud(code,(existed)=>{
+  pullCloud(code,(existed,persisted)=>{
     if(existed){
       syncCode=code;localStorage.setItem('hf_sync_code',syncCode);
       renderRecettes();renderLevelBar();
       document.getElementById('cloud-code-display').value=syncCode;
-      setCloudStatus('✅ Données récupérées !');
+      if(persisted!==false)setCloudStatus('✅ Données récupérées !');
     }
   },{force:true});
 }
