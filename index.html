@@ -519,7 +519,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='4.0';
+const APP_VERSION='4.1';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1066,19 +1066,16 @@ function mergeIntoFrigo(nom,unit,qty,rayon){
 }
 function finishShopping(){
   const sel=recettes.filter(r=>r.selected);
-  if(!sel.length){alert('Aucune recette sélectionnée pour la semaine.');return;}
+  if(!sel.length&&!manualItems.length){alert('Sélectionnez des recettes ou ajoutez un article avant de valider.');return;}
   const byRayon=buildCoursesByRayon();
   Object.values(byRayon).flat().forEach(item=>{
     const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
-    if(coursesDone[k])mergeIntoFrigo(item.nom,item.unit,parseFloat(item.total.toFixed(1)),item.rayon);
-  });
-  manualItems.forEach(item=>{
-    if(item.done)mergeIntoFrigo(item.nom,item.unit,parseFloat(item.qty)||0,item.rayon);
+    if(coursesDone[k])mergeIntoFrigo(item.nom,item.unit,parseFloat(item.total.toFixed(2)),item.rayon);
   });
   sel.forEach(r=>{r.thisWeek=true;r.selected=false;});
   coursesDone={};manualItems=[];
   save();
-  alert(`✅ ${sel.length} recette(s) ajoutée(s) à "Cette semaine" !`);
+  alert(sel.length?`✅ ${sel.length} recette(s) ajoutée(s) à "Cette semaine" !`:'✅ Courses validées !');
   switchTab('recettes');
 }
 
@@ -1251,9 +1248,16 @@ function buildCoursesByRayon(){
   sel.forEach(r=>r.ingr.forEach(i=>{
     const k=(i.nom+i.unit).toLowerCase().replace(/[\s'"]/g,'');
     const sc=scaleQ(i.qte,r.basePersons||2,persons);
-    if(!map[k])map[k]={nom:i.nom,unit:i.unit,total:0,rayon:i.rayon||'autres'};
+    if(!map[k])map[k]={nom:i.nom,unit:i.unit,total:0,rayon:i.rayon||'autres',manualIdx:null};
     map[k].total+=sc;
   }));
+  manualItems.forEach((item,idx)=>{
+    const k=(item.nom+(item.unit||'')).toLowerCase().replace(/[\s'"]/g,'');
+    const q=parseFloat(item.qty)||0;
+    if(!map[k])map[k]={nom:item.nom,unit:item.unit||'',total:0,rayon:item.rayon||'autres',manualIdx:idx};
+    else map[k].manualIdx=idx;
+    map[k].total+=q;
+  });
   const byRayon={};
   Object.values(map).forEach(item=>{const r=item.rayon||'autres';if(!byRayon[r])byRayon[r]=[];byRayon[r].push(item);});
   return byRayon;
@@ -1263,12 +1267,13 @@ function renderCourses(){
   const tags=document.getElementById('courses-tags');
   const list=document.getElementById('courses-list');
   const note=document.getElementById('base-note');
-  if(!sel.length){
+  document.getElementById('manual-list').innerHTML='';
+  if(!sel.length&&!manualItems.length){
     tags.innerHTML='';note.textContent='';
-    list.innerHTML='<div class="empty">🛒 Sélectionne des recettes<br>dans l\'onglet Recettes.</div>';
-    renderManual();return;
+    list.innerHTML='<div class="empty">🛒 Sélectionne des recettes<br>ou ajoute un article ci-dessous.</div>';
+    return;
   }
-  note.textContent='Quantités ajustées par recette';
+  note.textContent=sel.length?'Quantités ajustées par recette':'';
   tags.innerHTML=sel.map(r=>`<span style="font-size:12px;padding:3px 9px;border-radius:20px;background:var(--hfl);color:var(--hft);border:1px solid var(--hfb)">${r.nom}</span>`).join('');
   const byRayon=buildCoursesByRayon();
   let html='';
@@ -1282,21 +1287,23 @@ function renderCourses(){
       ${byRayon[rayon].sort((a,b)=>a.nom.localeCompare(b.nom)).map(item=>{
         const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
         const done=coursesDone[k];
-        const t=parseFloat(item.total.toFixed(1));
+        const t=parseFloat(item.total.toFixed(2));
         return`<div class="courses-item" style="${done?'opacity:0.35':''}">
           <div>
             <div class="courses-nom" style="${done?'text-decoration:line-through':''}">${item.nom}</div>
             <div class="courses-qty">${t}${item.unit?' '+item.unit:''}</div>
           </div>
-          <div class="c-cb ${done?'done':''}" onclick="togC('${k}')">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="c-cb ${done?'done':''}" onclick="togC('${k}')">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            ${item.manualIdx!==null?`<button class="del-btn" onclick="delManual(${item.manualIdx})">✕</button>`:''}
           </div>
         </div>`;
       }).join('')}
     </div>`;
   });
   list.innerHTML=html;
-  renderManual();
 }
 function toggleAllCourses(onlyRayon){
   const byRayon=buildCoursesByRayon();
@@ -1314,36 +1321,6 @@ function togC(k){
 }
 
 function resetCourses(){if(confirm('Réinitialiser la liste de courses ?')){coursesDone={};save();renderCourses();}}
-
-function renderManual(){
-  const el=document.getElementById('manual-list');
-  if(!manualItems.length){el.innerHTML='';return;}
-  const byRayon={};
-  manualItems.forEach((item,i)=>{const r=item.rayon||'autres';if(!byRayon[r])byRayon[r]=[];byRayon[r].push(i);});
-  let html='<div style="font-size:12px;font-weight:600;color:var(--hft);text-transform:uppercase;letter-spacing:0.4px;margin:12px 0 6px">Articles ajoutés</div>';
-  RAYONS.forEach(rayon=>{
-    if(!byRayon[rayon])return;
-    html+=`<div style="background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden;margin-bottom:10px">
-      <div class="rayon-title"><span>${RAYON_ICONS[rayon]} ${rayon.charAt(0).toUpperCase()+rayon.slice(1)}</span></div>
-      ${byRayon[rayon].map(i=>{
-        const item=manualItems[i];
-        return`<div class="courses-item" style="${item.done?'opacity:0.35':''}">
-          <div>
-            <div class="courses-nom" style="${item.done?'text-decoration:line-through':''}">${item.nom}</div>
-            ${item.qty?`<div class="courses-qty">${item.qty}${item.unit?' '+item.unit:''}</div>`:''}
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <div class="c-cb ${item.done?'done':''}" onclick="togManual(${i})">
-              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <button class="del-btn" onclick="delManual(${i})">✕</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-  });
-  el.innerHTML=html;
-}
 
 let manualSugMatches=[],manualSugIndex=-1;
 function showManualSug(val){
@@ -1393,15 +1370,14 @@ function addManual(){
     ex.qty=Math.round((exQty+addQty)*100)/100;
     if(unit)ex.unit=unit;
     ex.rayon=rayon;
-  } else manualItems.push({nom,qty,unit,rayon,done:false});
+  } else manualItems.push({nom,qty,unit,rayon});
   document.getElementById('manual-input').value='';
   document.getElementById('manual-qty-input').value='';
   document.getElementById('manual-unit-input').value='';
   hideManualSug();
-  save();renderManual();
+  save();renderCourses();
 }
-function togManual(i){manualItems[i].done=!manualItems[i].done;save();renderManual();}
-function delManual(i){manualItems.splice(i,1);save();renderManual();}
+function delManual(i){manualItems.splice(i,1);save();renderCourses();}
 
 function shareList(){
   const sel=recettes.filter(r=>r.selected);
