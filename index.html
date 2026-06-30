@@ -156,8 +156,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .c-cb.done{background:var(--hfl)}
 .c-cb svg{width:13px;height:13px;fill:transparent}
 .c-cb.done svg{fill:var(--hf)}
-.add-article-row{display:flex;gap:7px;margin-bottom:11px}
-.add-article-row input{flex:1;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:16px;padding:9px 12px;font-family:inherit;-webkit-appearance:none}
+.add-article-row{display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap}
+.add-article-row input{flex:1;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:16px;padding:9px 10px;font-family:inherit;-webkit-appearance:none}
+.add-article-row select{flex:0 0 95px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:16px;padding:9px 6px;font-family:inherit;-webkit-appearance:none;appearance:none}
 
 /* FRIGO */
 .frigo-item{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-bottom:1px solid #f0f0f0}
@@ -346,8 +347,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
       </div>
       <div id="courses-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
       <div class="add-article-row">
-        <input type="text" id="manual-input" placeholder="Ajouter un article (pain, eau…)" onkeydown="if(event.key==='Enter')addManual()">
-        <button class="btn btn-hfl btn-sm" onclick="addManual()">＋</button>
+        <div class="ingr-nom-wrap" style="flex:1;min-width:90px">
+          <input type="text" id="manual-input" placeholder="Ingrédient" autocomplete="off" autocorrect="off"
+            oninput="showManualSug(this.value)" onkeydown="handleManualSugKeydown(event)" onblur="setTimeout(hideManualSug,200)"
+            style="width:100%">
+          <div class="sug-box" id="s_manual-input"></div>
+        </div>
+        <input type="number" id="manual-qty-input" placeholder="Qté" step="any" style="flex:0 0 60px">
+        <input type="text" id="manual-unit-input" placeholder="Unité" style="flex:0 0 70px">
+        <select id="manual-rayon-sel">
+          <option>légumes</option><option>fruits</option><option>viandes</option><option>poissons</option><option>frais</option><option>épicerie</option><option>surgelés</option><option selected>autres</option>
+        </select>
+        <button class="btn btn-hfl btn-sm" onclick="addManual()" style="flex:0 0 auto">＋</button>
       </div>
       <div id="courses-list"></div>
       <div id="manual-list"></div>
@@ -508,7 +519,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='3.1';
+const APP_VERSION='4.0';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1061,6 +1072,9 @@ function finishShopping(){
     const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
     if(coursesDone[k])mergeIntoFrigo(item.nom,item.unit,parseFloat(item.total.toFixed(1)),item.rayon);
   });
+  manualItems.forEach(item=>{
+    if(item.done)mergeIntoFrigo(item.nom,item.unit,parseFloat(item.qty)||0,item.rayon);
+  });
   sel.forEach(r=>{r.thisWeek=true;r.selected=false;});
   coursesDone={};manualItems=[];
   save();
@@ -1304,24 +1318,87 @@ function resetCourses(){if(confirm('Réinitialiser la liste de courses ?')){cour
 function renderManual(){
   const el=document.getElementById('manual-list');
   if(!manualItems.length){el.innerHTML='';return;}
-  el.innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--hft);text-transform:uppercase;letter-spacing:0.4px;margin:12px 0 6px">Articles ajoutés</div>
-  <div style="background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden">
-    ${manualItems.map((item,i)=>`<div class="courses-item" style="${item.done?'opacity:0.35':''}">
-      <span style="font-size:14px;${item.done?'text-decoration:line-through':''}">${item.nom}</span>
-      <div style="display:flex;gap:8px;align-items:center">
-        <div class="c-cb ${item.done?'done':''}" onclick="togManual(${i})">
-          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <button class="del-btn" onclick="delManual(${i})">✕</button>
-      </div>
-    </div>`).join('')}
-  </div>`;
+  const byRayon={};
+  manualItems.forEach((item,i)=>{const r=item.rayon||'autres';if(!byRayon[r])byRayon[r]=[];byRayon[r].push(i);});
+  let html='<div style="font-size:12px;font-weight:600;color:var(--hft);text-transform:uppercase;letter-spacing:0.4px;margin:12px 0 6px">Articles ajoutés</div>';
+  RAYONS.forEach(rayon=>{
+    if(!byRayon[rayon])return;
+    html+=`<div style="background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden;margin-bottom:10px">
+      <div class="rayon-title"><span>${RAYON_ICONS[rayon]} ${rayon.charAt(0).toUpperCase()+rayon.slice(1)}</span></div>
+      ${byRayon[rayon].map(i=>{
+        const item=manualItems[i];
+        return`<div class="courses-item" style="${item.done?'opacity:0.35':''}">
+          <div>
+            <div class="courses-nom" style="${item.done?'text-decoration:line-through':''}">${item.nom}</div>
+            ${item.qty?`<div class="courses-qty">${item.qty}${item.unit?' '+item.unit:''}</div>`:''}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="c-cb ${item.done?'done':''}" onclick="togManual(${i})">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <button class="del-btn" onclick="delManual(${i})">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+  el.innerHTML=html;
 }
 
+let manualSugMatches=[],manualSugIndex=-1;
+function showManualSug(val){
+  const box=document.getElementById('s_manual-input');
+  if(!val||val.length<1){box.style.display='none';manualSugMatches=[];return;}
+  const matches=getAllIngrs().filter(n=>n.nom.toLowerCase().includes(val.toLowerCase())&&n.nom.toLowerCase()!==val.toLowerCase());
+  manualSugMatches=matches.slice(0,5);
+  manualSugIndex=-1;
+  if(!manualSugMatches.length){box.style.display='none';return;}
+  renderManualSugBox();
+  box.style.display='block';
+}
+function renderManualSugBox(){
+  const box=document.getElementById('s_manual-input');
+  box.innerHTML=manualSugMatches.map((n,i)=>`<div class="sug-item ${i===manualSugIndex?'sug-active':''}" onmousedown="pickManualSug('${n.nom.replace(/'/g,"\\'")}','${n.rayon}')">${n.nom}</div>`).join('');
+}
+function pickManualSug(nom,rayon){
+  document.getElementById('manual-input').value=nom;
+  const sel=document.getElementById('manual-rayon-sel');
+  if(sel&&rayon)sel.value=rayon;
+  hideManualSug();
+}
+function hideManualSug(){const b=document.getElementById('s_manual-input');if(b)b.style.display='none';}
+function handleManualSugKeydown(e){
+  const box=document.getElementById('s_manual-input');
+  const open=box&&box.style.display==='block'&&manualSugMatches.length;
+  if(open){
+    if(e.key==='ArrowDown'){e.preventDefault();manualSugIndex=Math.min(manualSugMatches.length-1,manualSugIndex+1);renderManualSugBox();return;}
+    if(e.key==='ArrowUp'){e.preventDefault();manualSugIndex=Math.max(0,manualSugIndex-1);renderManualSugBox();return;}
+    if(e.key==='Enter'&&manualSugIndex>=0&&manualSugMatches[manualSugIndex]){
+      e.preventDefault();pickManualSug(manualSugMatches[manualSugIndex].nom,manualSugMatches[manualSugIndex].rayon);return;
+    }
+    if(e.key==='Escape'){hideManualSug();return;}
+  }
+  if(e.key==='Enter')addManual();
+}
 function addManual(){
-  const inp=document.getElementById('manual-input');
-  const v=inp.value.trim();if(!v)return;
-  manualItems.push({nom:v,done:false});inp.value='';save();renderManual();
+  const nom=document.getElementById('manual-input').value.trim();
+  if(!nom)return;
+  const qty=document.getElementById('manual-qty-input').value.trim();
+  const unit=document.getElementById('manual-unit-input').value.trim();
+  const rayon=document.getElementById('manual-rayon-sel').value;
+  const ex=manualItems.find(m=>m.nom.toLowerCase()===nom.toLowerCase());
+  if(ex){
+    const exQty=parseFloat(ex.qty)||0;
+    const addQty=parseFloat(qty)||0;
+    ex.qty=Math.round((exQty+addQty)*100)/100;
+    if(unit)ex.unit=unit;
+    ex.rayon=rayon;
+  } else manualItems.push({nom,qty,unit,rayon,done:false});
+  document.getElementById('manual-input').value='';
+  document.getElementById('manual-qty-input').value='';
+  document.getElementById('manual-unit-input').value='';
+  hideManualSug();
+  save();renderManual();
 }
 function togManual(i){manualItems[i].done=!manualItems[i].done;save();renderManual();}
 function delManual(i){manualItems.splice(i,1);save();renderManual();}
