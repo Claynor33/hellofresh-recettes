@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Hello Fresh">
+<meta name="apple-mobile-web-app-title" content="Recetto">
 <meta name="theme-color" content="#6aaa41">
-<title>Hello Fresh — Mes recettes</title>
+<title>Recetto — Mes recettes</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
@@ -19,7 +19,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .header{background:var(--hf);padding:calc(14px + var(--safe-top)) 14px 12px;display:flex;align-items:center;gap:10px}
 .hlogo{width:30px;height:30px;background:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .hlogo svg{width:18px;height:18px;fill:var(--hf)}
-.header h1{font-size:15px;font-weight:600;color:#fff;flex:1}
+.header h1{font-size:15px;font-weight:600;color:#fff}
+.header-title-wrap{flex:1;min-width:0}
+.header-version{font-size:10px;font-weight:500;color:rgba(255,255,255,0.65);margin-top:1px}
 .header-acts{display:flex;gap:6px}
 .hbtn{background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:13px;font-family:inherit}
 .tabs{display:flex;border-bottom:1px solid #e0e0e0;background:#fff;position:sticky;top:0;z-index:10}
@@ -276,7 +278,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
     <div class="hlogo">
       <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.62L5.71 21l1-1.9A4.49 4.49 0 0 0 8 20c4 0 4-2 8-2s4 2 8 2v-2c-4 0-4-2-8-2c-1 0-1.74.1-2.39.23C14.7 13.09 16.39 10.5 17 8z"/></svg>
     </div>
-    <h1>Hello Fresh — Recettes</h1>
+    <div class="header-title-wrap">
+      <h1>Recetto</h1>
+      <div class="header-version">v<span id="header-version-text"></span></div>
+    </div>
     <div class="header-acts">
       <button class="hbtn" onclick="openCloudModal()" title="Sauvegarde cloud">☁️</button>
       <button class="hbtn" onclick="exportData()" title="Exporter">⬇️</button>
@@ -548,7 +553,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='6.0';
+const APP_VERSION='7.0';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -840,12 +845,12 @@ function exportData(){
   const data=JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player},null,2);
   if(navigator.share){
     const file=new File([data],'hellofresh.json',{type:'application/json'});
-    navigator.share({files:[file],title:'Hello Fresh — Sauvegarde'}).catch(()=>copyFallback(data));
+    navigator.share({files:[file],title:'Recetto — Sauvegarde'}).catch(()=>copyFallback(data));
   } else copyFallback(data);
 }
 function copyFallback(data){
   const b=new Blob([data],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='hellofresh.json';a.click();
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='recetto.json';a.click();
 }
 function importData(evt){
   const f=evt.target.files[0];if(!f)return;
@@ -1457,7 +1462,7 @@ function shareList(){
     if(!map[k])map[k]={nom:i.nom,unit:i.unit,total:0};
     map[k].total+=sc;
   }));
-  let txt=`🛒 Liste de courses Hello Fresh\n👥 ${persons} personne(s)\n\n`;
+  let txt=`🛒 Liste de courses Recetto\n👥 ${persons} personne(s)\n\n`;
   Object.values(map).sort((a,b)=>a.nom.localeCompare(b.nom)).forEach(i=>txt+=`• ${i.nom} — ${parseFloat(i.total.toFixed(1))}${i.unit?' '+i.unit:''}\n`);
   if(manualItems.length){txt+='\n📦 Autres :\n';manualItems.forEach(i=>txt+=`• ${i.nom}\n`);}
   if(navigator.share)navigator.share({title:'Liste de courses',text:txt});
@@ -2027,6 +2032,7 @@ document.addEventListener('touchend',e=>{
 },{passive:false});
 
 /* ---- INIT ---- */
+document.getElementById('header-version-text').textContent=APP_VERSION;
 load().then(()=>{
   document.getElementById('p-val').textContent=persons;
   renderRecettes();
