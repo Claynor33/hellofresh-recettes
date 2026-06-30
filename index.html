@@ -146,7 +146,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .p-val{font-size:16px;font-weight:700;color:var(--hfd);min-width:20px;text-align:center}
 
 /* COURSES */
-.rayon-title{font-size:12px;font-weight:600;color:var(--hft);text-transform:uppercase;letter-spacing:0.4px;padding:8px 13px 5px;background:var(--hfl);border-bottom:1px solid var(--hfb)}
+.rayon-title{font-size:12px;font-weight:600;color:var(--hft);text-transform:uppercase;letter-spacing:0.4px;padding:8px 13px 5px;background:var(--hfl);border-bottom:1px solid var(--hfb);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rayon-select-btn{background:#fff;color:var(--hft);border:1px solid var(--hfb);border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;flex-shrink:0}
 .courses-item{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;border-bottom:1px solid #f0f0f0}
 .courses-item:last-child{border-bottom:none}
 .courses-nom{font-size:14px}
@@ -326,6 +327,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
       <div class="top-bar">
         <h2>Liste de courses</h2>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-hfl btn-sm" onclick="toggleAllCourses()">☑️ Tout cocher</button>
           <button class="btn btn-hf btn-sm" onclick="finishShopping()">✅ Courses faites</button>
           <button class="btn btn-sm" onclick="shareList()">↗ Partager</button>
           <button class="btn btn-sm" onclick="resetCourses()">↺ Réinit.</button>
@@ -506,7 +508,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='2.3';
+const APP_VERSION='3.0';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1214,6 +1216,19 @@ function deductFrigo(id){
 function chgP(d){persons=Math.max(1,Math.min(12,persons+d));document.getElementById('p-val').textContent=persons;save();renderCourses();}
 function scaleQ(q,base,target){const r=q*(target/(base||2));return parseFloat(Number.isInteger(r)?r:r.toFixed(1));}
 
+function buildCoursesByRayon(){
+  const sel=recettes.filter(r=>r.selected);
+  const map={};
+  sel.forEach(r=>r.ingr.forEach(i=>{
+    const k=(i.nom+i.unit).toLowerCase().replace(/[\s'"]/g,'');
+    const sc=scaleQ(i.qte,r.basePersons||2,persons);
+    if(!map[k])map[k]={nom:i.nom,unit:i.unit,total:0,rayon:i.rayon||'autres'};
+    map[k].total+=sc;
+  }));
+  const byRayon={};
+  Object.values(map).forEach(item=>{const r=item.rayon||'autres';if(!byRayon[r])byRayon[r]=[];byRayon[r].push(item);});
+  return byRayon;
+}
 function renderCourses(){
   const sel=recettes.filter(r=>r.selected);
   const tags=document.getElementById('courses-tags');
@@ -1226,20 +1241,15 @@ function renderCourses(){
   }
   note.textContent='Quantités ajustées par recette';
   tags.innerHTML=sel.map(r=>`<span style="font-size:12px;padding:3px 9px;border-radius:20px;background:var(--hfl);color:var(--hft);border:1px solid var(--hfb)">${r.nom}</span>`).join('');
-  const map={};
-  sel.forEach(r=>r.ingr.forEach(i=>{
-    const k=(i.nom+i.unit).toLowerCase().replace(/[\s'"]/g,'');
-    const sc=scaleQ(i.qte,r.basePersons||2,persons);
-    if(!map[k])map[k]={nom:i.nom,unit:i.unit,total:0,rayon:i.rayon||'autres'};
-    map[k].total+=sc;
-  }));
-  const byRayon={};
-  Object.values(map).forEach(item=>{const r=item.rayon||'autres';if(!byRayon[r])byRayon[r]=[];byRayon[r].push(item);});
+  const byRayon=buildCoursesByRayon();
   let html='';
   RAYONS.forEach(rayon=>{
     if(!byRayon[rayon])return;
     html+=`<div style="background:#fff;border:1px solid #e0e0e0;border-radius:14px;overflow:hidden;margin-bottom:10px">
-      <div class="rayon-title">${RAYON_ICONS[rayon]} ${rayon.charAt(0).toUpperCase()+rayon.slice(1)}</div>
+      <div class="rayon-title">
+        <span>${RAYON_ICONS[rayon]} ${rayon.charAt(0).toUpperCase()+rayon.slice(1)}</span>
+        <button class="rayon-select-btn" onclick="toggleAllCourses('${rayon}')">☑️ Tout</button>
+      </div>
       ${byRayon[rayon].sort((a,b)=>a.nom.localeCompare(b.nom)).map(item=>{
         const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
         const done=coursesDone[k];
@@ -1258,6 +1268,24 @@ function renderCourses(){
   });
   list.innerHTML=html;
   renderManual();
+}
+function toggleAllCourses(onlyRayon){
+  const byRayon=buildCoursesByRayon();
+  const items=onlyRayon?(byRayon[onlyRayon]||[]):Object.values(byRayon).flat();
+  items.forEach(item=>{
+    const k=(item.nom+item.unit).toLowerCase().replace(/[\s'"]/g,'');
+    if(coursesDone[k])return;
+    coursesDone[k]=true;
+    const qty=parseFloat(item.total.toFixed(1));
+    const ex=frigo.find(f=>f.nom.toLowerCase()===item.nom.toLowerCase());
+    if(ex){
+      const exQty=parseFloat(ex.qty)||0;
+      ex.qty=Math.round((exQty+qty)*100)/100;
+      if(item.unit)ex.unit=item.unit;
+      ex.rayon=item.rayon||'autres';
+    } else frigo.push({nom:item.nom,unit:item.unit,qty,rayon:item.rayon||'autres'});
+  });
+  save();renderCourses();
 }
 
 function togC(k,nom,unit,qty,rayon){
