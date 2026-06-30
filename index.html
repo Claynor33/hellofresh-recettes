@@ -534,7 +534,7 @@ async function pullCloud(code,cb,opts){
     coursesDone=d.coursesDone||{};persons=d.persons||2;manualItems=d.manualItems||[];frigo=d.frigo||[];player=d.player||{xp:0,level:1};
     localUpdatedAt=d.updatedAt||Date.now();
     try{
-      localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
+      persistLocal();
     }catch(storageErr){
       console.error('Quota stockage local',storageErr);
       setCloudStatus('⚠️ Données récupérées mais stockage saturé sur cet appareil.\nOuvrez "🛠 Optimiser les photos" puis réessayez.');
@@ -605,8 +605,44 @@ const MAX_LEVEL=100;
 const XP_PAR_DIFF={easy:20,medium:35,hard:50};
 let localUpdatedAt=0;
 
+/* ---- PHOTOS (IndexedDB) ---- */
+const PHOTO_DB='hf_photos_db',PHOTO_STORE='photos';
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB){reject(new Error('IndexedDB indisponible'));return;}
+    const req=indexedDB.open(PHOTO_DB,1);
+    req.onupgradeneeded=()=>{req.result.createObjectStore(PHOTO_STORE,{keyPath:'id'});};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+function idbSetPhoto(id,img){
+  return idbOpen().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readwrite');
+    tx.objectStore(PHOTO_STORE).put({id:String(id),img});
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+  }));
+}
+function idbDeletePhoto(id){
+  return idbOpen().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readwrite');
+    tx.objectStore(PHOTO_STORE).delete(String(id));
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+  }));
+}
+function idbGetAllPhotos(){
+  return idbOpen().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readonly');
+    const req=tx.objectStore(PHOTO_STORE).getAll();
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
+  }));
+}
+
 /* ---- STORAGE ---- */
-function load(){
+async function load(){
   try{
     const d=JSON.parse(localStorage.getItem(SK)||'{}');
     recettes=d.recettes||defs();
@@ -617,13 +653,25 @@ function load(){
     player=d.player||{xp:0,level:1};
     localUpdatedAt=d.updatedAt||0;
   }catch(e){recettes=defs();coursesDone={};persons=2;manualItems=[];frigo=[];player={xp:0,level:1};localUpdatedAt=0;}
+  try{
+    const photos=await idbGetAllPhotos();
+    const map={};photos.forEach(p=>map[p.id]=p.img);
+    recettes.forEach(r=>{if(map[String(r.id)])r.img=map[String(r.id)];});
+  }catch(e){console.error('Lecture photos IndexedDB échouée',e);}
+}
+function persistLocal(){
+  const light=recettes.map(r=>{const{img,...rest}=r;return rest;});
+  localStorage.setItem(SK,JSON.stringify({recettes:light,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));
+  recettes.forEach(r=>{
+    if(r.img)idbSetPhoto(r.id,r.img).catch(e=>console.error('Sauvegarde photo IndexedDB échouée',e));
+  });
 }
 function save(){
   localUpdatedAt=Date.now();
-  try{localStorage.setItem(SK,JSON.stringify({recettes,coursesDone,persons,manualItems,frigo,player,updatedAt:localUpdatedAt}));}
+  try{persistLocal();}
   catch(e){
     console.error('Erreur stockage',e);
-    alert('⚠️ Stockage local saturé (souvent à cause d\'anciennes photos trop lourdes).\nOuvrez ☁️ → "🛠 Optimiser les photos" puis réessayez.');
+    alert('⚠️ Stockage local saturé.\nOuvrez ☁️ → "🛠 Optimiser les photos" puis réessayez.');
     return false;
   }
   pushCloud();
@@ -906,7 +954,7 @@ function renderRecettes(){
 
 function confirmDel(id){if(confirm('Supprimer cette recette ?'))delRecette(id);}
 function toggleSel(id){const r=recettes.find(x=>x.id===id);if(r){r.selected=!r.selected;save();renderRecettes();}}
-function delRecette(id){recettes=recettes.filter(x=>x.id!==id);save();renderRecettes();}
+function delRecette(id){recettes=recettes.filter(x=>x.id!==id);idbDeletePhoto(id).catch(()=>{});save();renderRecettes();}
 function categoryOf(r){
   const t=r.tags||[];
   if(t.includes('vegan')||t.includes('veggie'))return 'veggie';
@@ -1489,16 +1537,17 @@ document.addEventListener('touchend',e=>{
 },{passive:false});
 
 /* ---- INIT ---- */
-load();
-document.getElementById('p-val').textContent=persons;
-renderRecettes();
-renderLevelBar();
-checkInstallBanner();
-pullCloud(syncCode,(existed)=>{
-  renderRecettes();renderLevelBar();
-  if(document.getElementById('view-courses').classList.contains('active')){document.getElementById('p-val').textContent=persons;renderCourses();}
-  if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
-  if(!existed)pushCloud();
+load().then(()=>{
+  document.getElementById('p-val').textContent=persons;
+  renderRecettes();
+  renderLevelBar();
+  checkInstallBanner();
+  pullCloud(syncCode,(existed)=>{
+    renderRecettes();renderLevelBar();
+    if(document.getElementById('view-courses').classList.contains('active')){document.getElementById('p-val').textContent=persons;renderCourses();}
+    if(document.getElementById('view-frigo').classList.contains('active'))renderFrigo();
+    if(!existed)pushCloud();
+  });
 });
 </script>
 </body>
