@@ -577,7 +577,7 @@ function restoreFromCode(){
       renderRecettes();renderLevelBar();
       document.getElementById('cloud-code-display').value=syncCode;
       setCloudStatus('✅ Données récupérées !');
-    } else setCloudStatus('❌ Aucune donnée pour ce code.');
+    } else setCloudStatus('❌ Aucune donnée pour le code "'+code+'".');
   },{force:true});
 }
 const RAYONS=['légumes','fruits','viandes','poissons','frais','épicerie','surgelés','autres'];
