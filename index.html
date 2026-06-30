@@ -367,7 +367,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
             style="width:100%">
           <div class="sug-box" id="s_frigo-nom-input"></div>
         </div>
-        <input type="text" id="frigo-qty-input" placeholder="Qté (200g)">
+        <input type="number" id="frigo-qty-input" placeholder="Qté" step="any" style="flex:0 0 60px">
+        <input type="text" id="frigo-unit-input" placeholder="Unité" style="flex:0 0 70px">
         <select id="frigo-rayon-sel">
           <option>légumes</option><option>fruits</option><option>viandes</option><option>poissons</option><option>frais</option><option>épicerie</option><option>surgelés</option><option>autres</option>
         </select>
@@ -505,7 +506,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='2.0';
+const APP_VERSION='2.1';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1384,13 +1385,15 @@ function handleFrigoSugKeydown(e){
 function addFrigoManual(){
   const nom=document.getElementById('frigo-nom-input').value.trim();
   const qty=document.getElementById('frigo-qty-input').value.trim();
+  const unit=document.getElementById('frigo-unit-input').value.trim();
   const rayon=document.getElementById('frigo-rayon-sel').value;
   if(!nom)return;
   const ex=frigo.find(f=>f.nom.toLowerCase()===nom.toLowerCase());
-  if(ex){ex.qty=qty;ex.rayon=rayon;}
-  else frigo.push({nom,qty,unit:'',rayon});
+  if(ex){ex.qty=qty;ex.unit=unit;ex.rayon=rayon;}
+  else frigo.push({nom,qty,unit,rayon});
   document.getElementById('frigo-nom-input').value='';
   document.getElementById('frigo-qty-input').value='';
+  document.getElementById('frigo-unit-input').value='';
   hideFrigoSug();
   save();renderFrigo();
 }
