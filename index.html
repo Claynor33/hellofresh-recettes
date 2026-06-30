@@ -537,7 +537,7 @@ async function pullCloud(code,cb,opts){
       persistLocal();
     }catch(storageErr){
       console.error('Quota stockage local',storageErr);
-      setCloudStatus('⚠️ Données récupérées mais stockage saturé sur cet appareil.\nOuvrez "🛠 Optimiser les photos" puis réessayez.');
+      setCloudStatus('⚠️ Données récupérées mais stockage local en échec : '+(storageErr&&storageErr.name?storageErr.name:'')+' '+(storageErr&&storageErr.message?storageErr.message:storageErr));
       if(cb)cb(true,false);
       return;
     }
@@ -671,7 +671,7 @@ function save(){
   try{persistLocal();}
   catch(e){
     console.error('Erreur stockage',e);
-    alert('⚠️ Stockage local saturé.\nOuvrez ☁️ → "🛠 Optimiser les photos" puis réessayez.');
+    alert('⚠️ Stockage local en échec : '+(e&&e.name?e.name:'')+' '+(e&&e.message?e.message:e));
     return false;
   }
   pushCloud();
