@@ -506,7 +506,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 /* APP_VERSION: format MAJOR.MINOR — MINOR (+0.1) pour un correctif/bug, MAJOR (+1.0) pour une nouvelle fonctionnalité */
-const APP_VERSION='2.2';
+const APP_VERSION='2.3';
 const SK='hf_v6_ios';
 
 /* ---- FIREBASE / CLOUD SYNC ---- */
@@ -1265,8 +1265,13 @@ function togC(k,nom,unit,qty,rayon){
   coursesDone[k]=!wasDone;
   if(!wasDone){
     const ex=frigo.find(f=>f.nom.toLowerCase()===nom.toLowerCase());
-    if(ex){ex.qty=qty;ex.unit=unit;if(rayon)ex.rayon=rayon;}
-    else frigo.push({nom,unit,qty,rayon:rayon||'autres'});
+    if(ex){
+      const exQty=parseFloat(ex.qty)||0;
+      const addQty=parseFloat(qty)||0;
+      ex.qty=Math.round((exQty+addQty)*100)/100;
+      if(unit)ex.unit=unit;
+      if(rayon)ex.rayon=rayon;
+    } else frigo.push({nom,unit,qty,rayon:rayon||'autres'});
   } else {
     frigo=frigo.filter(f=>f.nom.toLowerCase()!==nom.toLowerCase());
   }
@@ -1389,8 +1394,13 @@ function addFrigoManual(){
   const rayon=document.getElementById('frigo-rayon-sel').value;
   if(!nom)return;
   const ex=frigo.find(f=>f.nom.toLowerCase()===nom.toLowerCase());
-  if(ex){ex.qty=qty;ex.unit=unit;ex.rayon=rayon;}
-  else frigo.push({nom,qty,unit,rayon});
+  if(ex){
+    const exQty=parseFloat(ex.qty)||0;
+    const addQty=parseFloat(qty)||0;
+    ex.qty=Math.round((exQty+addQty)*100)/100;
+    if(unit)ex.unit=unit;
+    ex.rayon=rayon;
+  } else frigo.push({nom,qty,unit,rayon});
   document.getElementById('frigo-nom-input').value='';
   document.getElementById('frigo-qty-input').value='';
   document.getElementById('frigo-unit-input').value='';
